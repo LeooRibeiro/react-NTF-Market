@@ -37,6 +37,7 @@ const buttonVariants = cva(
   }
 )
 
+/** Aplica variantes de estilo e permite renderizar o botão como elemento filho. */
 function Button({
   className,
   variant = "default",

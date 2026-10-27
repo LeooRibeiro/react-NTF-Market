@@ -5,6 +5,8 @@ import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } fr
 import { HomePage } from './pages/home-page'
 import { NftDetailPage } from './pages/nft-detail-page'
 import { CartPage } from './pages/cart-page'
+import { CheckoutPage } from './pages/checkout-page'
+import { OrderPage } from './pages/order-page'
 import './styles.css'
 import { sortOptions } from './features/catalog/catalog-api'
 
@@ -18,6 +20,7 @@ const rootRoute = createRootRoute({ component: () => <Outlet /> })
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
+  // Normaliza a busca da URL para que filtros inválidos não quebrem a consulta do catálogo.
   validateSearch: (search: Record<string, unknown>) => {
     const requestedSort = String(search.sort ?? 'recent')
     return {
@@ -44,19 +47,23 @@ const cartRoute = createRoute({
   path: '/cart',
   component: CartPage,
 })
-const routeTree = rootRoute.addChildren([homeRoute, nftDetailRoute, cartRoute])
+const checkoutRoute = createRoute({ getParentRoute: () => rootRoute, path: '/checkout', component: CheckoutPage })
+const orderRoute = createRoute({ getParentRoute: () => rootRoute, path: '/orders/$orderId', component: OrderPage })
+const routeTree = rootRoute.addChildren([homeRoute, nftDetailRoute, cartRoute, checkoutRoute, orderRoute])
 const router = createRouter({ routeTree })
 
 declare module '@tanstack/react-router' {
   interface Register { router: typeof router }
 }
 
+/** Inicializa o service worker MSW quando os mocks estão habilitados no ambiente. */
 async function startMocks() {
   if (import.meta.env.VITE_ENABLE_MOCKS === 'false' || !('serviceWorker' in navigator)) return
   const { worker } = await import('./mocks/browser')
   await worker.start({ onUnhandledFrame: 'bypass' })
 }
 
+/** Aguarda os mocks e monta o app com cache de consultas e rotas configuradas. */
 async function bootstrap() {
   await startMocks()
   ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -1,6 +1,7 @@
 import * as React from "react"
 import { cn } from "cn"
 
+/** Padroniza campos de texto e encaminha atributos nativos do input. */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input

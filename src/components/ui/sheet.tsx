@@ -5,28 +5,33 @@ import { cn } from "cn"
 import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
+/** Controla o estado de abertura do painel lateral. */
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
 
+/** Liga um botão ou outro controle à abertura do painel. */
 function SheetTrigger({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
 }
 
+/** Fecha o painel lateral quando acionado. */
 function SheetClose({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Close>) {
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
 }
 
+/** Renderiza o painel fora do fluxo principal do documento. */
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
 }
 
+/** Cria a camada de fundo que sinaliza o painel aberto. */
 function SheetOverlay({
   className,
   ...props
@@ -43,6 +48,7 @@ function SheetOverlay({
   )
 }
 
+/** Posiciona o conteúdo do painel em um dos lados da janela. */
 function SheetContent({
   className,
   children,
@@ -84,6 +90,7 @@ function SheetContent({
   )
 }
 
+/** Agrupa título e contexto do painel lateral. */
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -94,6 +101,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Mantém ações do painel alinhadas à borda inferior. */
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -104,6 +112,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Define o título acessível do painel lateral. */
 function SheetTitle({
   className,
   ...props
@@ -117,6 +126,7 @@ function SheetTitle({
   )
 }
 
+/** Define a descrição acessível do painel lateral. */
 function SheetDescription({
   className,
   ...props
