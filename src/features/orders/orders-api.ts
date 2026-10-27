@@ -23,6 +23,7 @@ export type CreateOrderInput = {
   collector: { name: string; email: string }
   walletId: string
   network: string
+  walletConnected: boolean
   coupon: string
   cartItems: Array<{ nftId: string; quantity: number }>
   scenario?: 'confirmed' | 'declined' | 'pending' | 'timeout'

@@ -5,13 +5,26 @@ export type CartItem = { nftId: string; quantity: number; nft: Nft }
 export type Cart = { items: CartItem[]; totalItems: number }
 export type CartQuote = { subtotal: string; discount: string; networkFee: string; total: string; coupon: string | null }
 
+const ETH_DECIMAL_PLACES = 6
+const ETH_UNIT = 10n ** BigInt(ETH_DECIMAL_PLACES)
+
+/** Converte ETH em uma quantidade inteira de unidades de seis casas decimais. */
+function toEthUnits(amount: string) {
+  const [whole = '0', fraction = ''] = amount.split('.')
+  const paddedFraction = (fraction + '0'.repeat(ETH_DECIMAL_PLACES)).slice(0, ETH_DECIMAL_PLACES)
+  return BigInt(whole) * ETH_UNIT + BigInt(paddedFraction)
+}
+
+/** Formata unidades inteiras como ETH sem arredondamento de ponto flutuante. */
+function fromEthUnits(amount: bigint) {
+  const whole = amount / ETH_UNIT
+  const fraction = (amount % ETH_UNIT).toString().padStart(ETH_DECIMAL_PLACES, '0').replace(/0+$/, '')
+  return fraction ? `${whole}.${fraction}` : `${whole}.0`
+}
+
 /** Multiplica valores ETH representados por strings sem introduzir erro de ponto flutuante. */
 export function multiplyEth(price: string, quantity: number) {
-  const [whole = '0', fraction = ''] = price.split('.')
-  const units = (BigInt(whole) * 1_000_000n + BigInt((fraction + '000000').slice(0, 6))) * BigInt(quantity)
-  const wholeUnits = units / 1_000_000n
-  const fractionalUnits = (units % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '')
-  return fractionalUnits ? `${wholeUnits}.${fractionalUnits}` : `${wholeUnits}.0`
+  return fromEthUnits(toEthUnits(price) * BigInt(quantity))
 }
 
 /** Lê os itens persistidos do carrinho e seus dados de catálogo. */

@@ -12,6 +12,7 @@ export type Nft = {
   network: string
   price: string
   previousPrice?: string
+  available?: boolean
   image: string
   rarity?: string
   listedAt: number

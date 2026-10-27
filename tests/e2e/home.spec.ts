@@ -110,16 +110,16 @@ test('apresenta estado acessível para NFT inexistente', async ({ page }) => {
 
 test('mantém o carrinho após refresh, aplica cupom e remove itens', async ({ page }) => {
   await page.goto('/nft/neon-vessel-552')
-  await page.getByRole('button', { name: 'Adicionar ao carrinho' }).click()
+  await page.getByRole('button', { name: 'Comprar' }).click()
   await page.getByRole('link', { name: /Ver carrinho/ }).click()
-  await expect(page.getByRole('heading', { name: 'Carrinho' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Carrinho' }).first()).toBeVisible()
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.locator('.home-page')).toBeVisible()
   await expect(page.locator('.cart-item')).toHaveCount(1)
   await page.screenshot({ path: 'test-results/cart.png', fullPage: true })
 
   await page.getByRole('link', { name: 'Continuar para pagamento' }).click()
-  await expect(page.getByRole('heading', { name: 'Pagamento' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Pagamento' }).first()).toBeVisible()
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Entre para continuar' })).toBeVisible()
   await page.getByRole('link', { name: /Carrinho/ }).click()
