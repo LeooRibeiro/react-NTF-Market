@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { Link } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CartCheckoutModal } from '../components/cart-checkout-modal'
 import { getCart, getCartQuote, multiplyEth, removeCartItem, updateCartItem } from '../features/cart/cart-api'
 
-const defaultCatalogSearch = { q: '', category: 'Todas', sort: 'recent' as const, page: 1, minPrice: 0, maxPrice: 12.3, network: 'Todas' }
 const couponStorageKey = 'kurio-cart-coupon-v1'
 
 /** Formata o total decimal retornado pela API e mostra zero enquanto a cotação carrega. */
@@ -18,6 +18,7 @@ function formatEth(value: string | undefined) {
 
 /** Mantém quantidades, remoção, cupom e resumo do carrinho sincronizados com a API. */
 export function CartPage() {
+  const catalogSearch = useSearch({ from: '/' })
   const queryClient = useQueryClient()
   const [couponInput, setCouponInput] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(() => localStorage.getItem(couponStorageKey) ?? '')
@@ -51,17 +52,11 @@ export function CartPage() {
   const quote = quoteQuery.data
 
   return (
-    <main className="market-shell cart-page">
-      <header className="topbar">
-        <Link className="brand" to="/" search={defaultCatalogSearch}>KURIO</Link>
-        <nav className="desktop-nav" aria-label="Navegação principal"><Link to="/" search={defaultCatalogSearch}>Início</Link><Link className="active" to="/" search={defaultCatalogSearch}>Mercado</Link><a href="/#creators">Criadores</a><a href="/#learn">Aprenda</a></nav>
-        <div className="header-actions"><Link className="top-icon" to="/cart" aria-label={`Carrinho, ${cart?.totalItems ?? 0} itens`}><ShoppingBag size={17} /><span>{cart?.totalItems ?? 0}</span></Link><Link className="login-button" to="/" search={defaultCatalogSearch}>Entrar</Link></div>
-      </header>
-
+    <CartCheckoutModal title="Carrinho">
       <section className="cart-content">
-        <div className="cart-heading"><div><p className="eyebrow">SUA COLEÇÃO</p><h1>Carrinho</h1><p>{cartQuery.isLoading ? 'Carregando seus itens…' : `${cart?.totalItems ?? 0} itens selecionados`}</p></div><Link to="/" search={defaultCatalogSearch}><ArrowLeft size={14} /> Continuar explorando</Link></div>
+        <div className="cart-heading"><div><p className="eyebrow">SUA COLEÇÃO</p><h1>Carrinho</h1><p>{cartQuery.isLoading ? 'Carregando seus itens…' : `${cart?.totalItems ?? 0} itens selecionados`}</p></div><Link to="/" search={catalogSearch}><ArrowLeft size={14} /> Continuar explorando</Link></div>
 
-        {cartQuery.isLoading ? <div className="cart-loading" aria-label="Carregando carrinho"><div /><div /></div> : cartQuery.isError ? <div className="cart-empty"><strong>Não foi possível carregar o carrinho.</strong><Button onClick={() => void cartQuery.refetch()}>Tentar novamente</Button></div> : !cart?.items.length ? <div className="cart-empty"><span><ShoppingBag size={24} /></span><strong>Seu carrinho está vazio.</strong><p>Encontre uma peça única para começar sua coleção.</p><Link className="primary-button" to="/" search={defaultCatalogSearch}>Explorar o mercado</Link></div> : (
+        {cartQuery.isLoading ? <div className="cart-loading" aria-label="Carregando carrinho"><div /><div /></div> : cartQuery.isError ? <div className="cart-empty"><strong>Não foi possível carregar o carrinho.</strong><Button onClick={() => void cartQuery.refetch()}>Tentar novamente</Button></div> : !cart?.items.length ? <div className="cart-empty"><span><ShoppingBag size={24} /></span><strong>Seu carrinho está vazio.</strong><p>Encontre uma peça única para começar sua coleção.</p><Link className="primary-button" to="/" search={catalogSearch}>Explorar o mercado</Link></div> : (
           <div className="cart-layout">
             <div className="cart-items" aria-label="Itens no carrinho">
               {cart.items.map(({ nft, nftId, quantity }) => <article className="cart-item" key={nftId}>
@@ -71,7 +66,7 @@ export function CartPage() {
                 <strong className="cart-item-total">{multiplyEth(nft.price, quantity)} ETH</strong>
                 <button className="remove-cart-item" type="button" aria-label={`Remover ${nft.name}`} disabled={removeMutation.isPending} onClick={() => removeMutation.mutate(nftId)}><Trash2 size={15} /></button>
               </article>)}
-              <Link className="back-to-market" to="/" search={defaultCatalogSearch}><ArrowLeft size={13} /> Voltar ao mercado</Link>
+              <Link className="back-to-market" to="/" search={catalogSearch}><ArrowLeft size={13} /> Voltar ao mercado</Link>
             </div>
 
             <aside className="cart-summary" aria-label="Resumo do pedido">
@@ -86,12 +81,11 @@ export function CartPage() {
               <div className="summary-lines"><div><span>Subtotal</span><strong>{formatEth(quote?.subtotal)}</strong></div><div><span>Desconto</span><strong>{quote?.discount && quote.discount !== '0.0' ? `− ${quote.discount} ETH` : '—'}</strong></div><div><span>Taxa de rede</span><strong>{formatEth(quote?.networkFee)}</strong></div></div>
               <div className="summary-total"><span>Total estimado</span><strong>{formatEth(quote?.total)}</strong></div>
               <p className="quote-note">O valor final será confirmado com a cotação atual antes do pagamento.</p>
-              <Link className="checkout-button checkout-link" to="/checkout">Continuar para pagamento</Link>
+              <Link className="checkout-button checkout-link" to="/checkout" search={catalogSearch}>Continuar para pagamento</Link>
             </aside>
           </div>
         )}
       </section>
-      <footer className="footer"><span>© 2026 KURIO</span><span>Descubra. Colecione. Seja original.</span></footer>
-    </main>
+    </CartCheckoutModal>
   )
 }

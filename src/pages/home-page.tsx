@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, Outlet, useNavigate, useSearch } from '@tanstack/react-router'
 import { isAxiosError } from 'axios'
 import {
   Check, ChevronLeft, ChevronRight, Eye, EyeOff, Heart,
@@ -204,7 +204,7 @@ export function HomePage() {
   const navigate = useNavigate({ from: '/' })
   const { q, category, sort, page, minPrice, maxPrice, network } = useSearch({ from: '/' })
   const [searchText, setSearchText] = useState(q)
-  const [authMode, setAuthMode] = useState<AuthMode>(() => localStorage.getItem('kurio-session-v1') ? null : 'register')
+  const [authMode, setAuthMode] = useState<AuthMode>(() => localStorage.getItem('kurio-session-v1') || window.location.pathname !== '/' ? null : 'register')
   const [priceRange, setPriceRange] = useState([minPrice, maxPrice])
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -240,7 +240,7 @@ export function HomePage() {
         <nav className="desktop-nav" aria-label="Navegação principal"><a className="active" href="#home">Início</a><a href="#catalog">Mercado</a><a href="#creators">Criadores</a><a href="#learn">Aprenda</a></nav>
         <div className="header-actions">
           <button className="top-icon" type="button" onClick={() => searchRef.current?.focus()} aria-label="Buscar NFTs"><Search size={17} /></button>
-          <Link className="top-icon cart-link" to="/cart" aria-label={`Carrinho, ${cart.data?.totalItems ?? 0} itens`}><ShoppingCart size={17} /><span>{cart.data?.totalItems ?? 0}</span></Link>
+          <Link className="top-icon cart-link" to="/cart" search={{ q, category, sort, page, minPrice, maxPrice, network }} aria-label={`Carrinho, ${cart.data?.totalItems ?? 0} itens`}><ShoppingCart size={17} /><span>{cart.data?.totalItems ?? 0}</span></Link>
           {session.data ? <button className="login-button profile-button" type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>{session.data.username}<span>Sair</span></button> : <button className="login-button" type="button" onClick={() => setAuthMode('login')}><LogIn size={14} /> Entrar</button>}
         </div>
       </header>
@@ -281,6 +281,7 @@ export function HomePage() {
 
       <footer className="footer"><span>© 2026 KURIO</span><span>Descubra. Colecione. Seja original.</span></footer>
       <AuthModal mode={authMode} onModeChange={setAuthMode} onClose={closeAuth} />
+      <Outlet />
     </main>
   )
 }

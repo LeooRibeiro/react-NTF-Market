@@ -43,13 +43,14 @@ const nftDetailRoute = createRoute({
   component: NftDetailPage,
 })
 const cartRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/cart',
+  getParentRoute: () => homeRoute,
+  path: 'cart',
   component: CartPage,
 })
-const checkoutRoute = createRoute({ getParentRoute: () => rootRoute, path: '/checkout', component: CheckoutPage })
+const checkoutRoute = createRoute({ getParentRoute: () => homeRoute, path: 'checkout', component: CheckoutPage })
 const orderRoute = createRoute({ getParentRoute: () => rootRoute, path: '/orders/$orderId', component: OrderPage })
-const routeTree = rootRoute.addChildren([homeRoute, nftDetailRoute, cartRoute, checkoutRoute, orderRoute])
+const homeBranch = homeRoute.addChildren([cartRoute, checkoutRoute])
+const routeTree = rootRoute.addChildren([homeBranch, nftDetailRoute, orderRoute])
 const router = createRouter({ routeTree })
 
 declare module '@tanstack/react-router' {

@@ -60,7 +60,7 @@ export function NftDetailPage() {
       <header className="topbar">
         <Link className="brand" to="/" search={defaultCatalogSearch}>KURIO</Link>
         <nav className="desktop-nav" aria-label="Navegação principal"><Link to="/" search={defaultCatalogSearch}>Início</Link><Link className="active" to="/" search={defaultCatalogSearch}>Mercado</Link><a href="/#creators">Criadores</a><a href="/#learn">Aprenda</a></nav>
-        <div className="header-actions"><Link className="top-icon" to="/cart" aria-label="Abrir carrinho"><ShoppingCart size={17} /></Link><Link className="login-button" to="/" search={defaultCatalogSearch}>Entrar</Link></div>
+        <div className="header-actions"><Link className="top-icon" to="/cart" search={defaultCatalogSearch} aria-label="Abrir carrinho"><ShoppingCart size={17} /></Link><Link className="login-button" to="/" search={defaultCatalogSearch}>Entrar</Link></div>
       </header>
 
       <div className="detail-breadcrumb"><Link to="/" search={defaultCatalogSearch}><ArrowLeft size={14} /> Voltar ao mercado</Link><span>/</span><span>{nft.category}</span><span>/</span><span>{nft.name}</span></div>
@@ -76,7 +76,7 @@ export function NftDetailPage() {
           <div className="detail-copy"><strong>Sobre este NFT:</strong><p>Um colecionável digital finalizado à mão da coleção Kurio Editions, verificado na {nft.network}, com arte desbloqueável e acesso para colecionadores.</p></div>
           <div className="edition-pills"><strong>Edição:</strong><div><span>1/1</span><span>1/10</span><span className="selected">1/50</span><span>ABERTA</span></div></div>
           <div className="detail-action-row"><div className="detail-quantity"><button type="button" aria-label="Diminuir quantidade" disabled={quantity <= 1} onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><span aria-live="polite">{quantity}</span><button type="button" aria-label="Aumentar quantidade" disabled={quantity >= 5} onClick={() => setQuantity((value) => Math.min(5, value + 1))}>+</button></div><Button className="detail-add-button" disabled={addMutation.isPending} onClick={() => { setMessage(''); addMutation.mutate() }}><ShoppingCart size={15} />{addMutation.isPending ? 'Adicionando…' : 'Comprar'}</Button><Button variant="outline" className={`detail-favorite-button ${favorite ? 'is-favorite' : ''}`} type="button" aria-label={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'} onClick={() => setFavorite((value) => !value)}><Heart size={16} fill={favorite ? 'currentColor' : 'none'} />Favoritar</Button></div>
-          {(message || addError) && <p className={addError ? 'detail-feedback error' : 'detail-feedback'} role={addError ? 'alert' : 'status'}>{addError || message}{message && <Link className="detail-cart-link" to="/cart"> Ver carrinho ↗</Link>}</p>}
+          {(message || addError) && <p className={addError ? 'detail-feedback error' : 'detail-feedback'} role={addError ? 'alert' : 'status'}>{addError || message}{message && <Link className="detail-cart-link" to="/cart" search={defaultCatalogSearch}> Ver carrinho ↗</Link>}</p>}
           <div className="detail-copy detail-token"><p>ID do token: #{nft.id.split('-').at(-1)?.replace(/^0/, '')}</p><p>Coleção: Kurio Apes</p><p>Atributos: {nft.category}, {nft.network}, Raro</p><button type="button" onClick={() => void shareNft()}>Compartilhar este NFT: <span>in ✉ ♥</span></button></div>
         </div>
       </section>
