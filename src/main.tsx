@@ -3,8 +3,10 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from '@tanstack/react-router'
 import { HomePage } from './pages/home-page'
-// @ts-ignore CSS is loaded by the bundler; TypeScript has no declaration for it.
+import { NftDetailPage } from './pages/nft-detail-page'
+import { CartPage } from './pages/cart-page'
 import './styles.css'
+import { sortOptions } from './features/catalog/catalog-api'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,18 +15,57 @@ const queryClient = new QueryClient({
 })
 
 const rootRoute = createRootRoute({ component: () => <Outlet /> })
-const homeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage })
-const routeTree = rootRoute.addChildren([homeRoute])
+const homeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  validateSearch: (search: Record<string, unknown>) => {
+    const requestedSort = String(search.sort ?? 'recent')
+    return {
+      q: typeof search.q === 'string' ? search.q : '',
+      category: typeof search.category === 'string' ? search.category : 'Todas',
+      sort: sortOptions.includes(requestedSort as (typeof sortOptions)[number])
+        ? requestedSort as (typeof sortOptions)[number]
+        : 'recent',
+      page: Math.max(1, Number(search.page) || 1),
+      minPrice: Math.max(0, Number(search.minPrice) || 0),
+      maxPrice: Math.max(0.1, Number(search.maxPrice) || 12.3),
+      network: typeof search.network === 'string' ? search.network : 'Todas',
+    }
+  },
+  component: HomePage,
+})
+const nftDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/nft/$nftId',
+  component: NftDetailPage,
+})
+const cartRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/cart',
+  component: CartPage,
+})
+const routeTree = rootRoute.addChildren([homeRoute, nftDetailRoute, cartRoute])
 const router = createRouter({ routeTree })
 
 declare module '@tanstack/react-router' {
   interface Register { router: typeof router }
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  </React.StrictMode>,
-)
+async function startMocks() {
+  if (import.meta.env.VITE_ENABLE_MOCKS === 'false' || !('serviceWorker' in navigator)) return
+  const { worker } = await import('./mocks/browser')
+  await worker.start({ onUnhandledFrame: 'bypass' })
+}
+
+async function bootstrap() {
+  await startMocks()
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </React.StrictMode>,
+  )
+}
+
+void bootstrap()

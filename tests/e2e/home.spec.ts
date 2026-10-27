@@ -1,0 +1,94 @@
+import { expect, test } from '@playwright/test'
+
+test('cria conta pela API simulada na tela de cadastro', async ({ page }) => {
+  await page.setViewportSize({ width: 1032, height: 750 })
+  await page.goto('/')
+
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(page.getByRole('article')).toHaveCount(9)
+  await page.screenshot({ path: 'test-results/home-register.png', fullPage: true })
+  await page.getByLabel('Nome de usuário').fill('Aline Teste')
+  await page.getByLabel('E-mail').fill(`aline-${Date.now()}@example.test`)
+  await page.getByLabel('Senha', { exact: true }).fill('KurioPass123')
+  await page.getByLabel('Confirmar senha').fill('KurioPass123')
+  await page.getByRole('button', { name: 'Criar conta', exact: true }).last().click()
+  await expect(page.getByRole('status')).toContainText('Conta criada para Aline Teste')
+
+  await page.getByRole('button', { name: 'Continuar explorando' }).click()
+  await expect(dialog).toBeHidden()
+})
+
+test('combina categoria e busca e mantém os filtros na URL', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Fechar cadastro' }).click()
+  await page.getByRole('button', { name: /Arte digital/ }).first().click()
+  await expect(page).toHaveURL(/category=Arte(?:%20|\+)digital/)
+  await expect(page.getByRole('article')).toHaveCount(3)
+
+  await page.getByRole('textbox', { name: 'Buscar NFTs' }).fill('Cosmic')
+  await expect(page).toHaveURL(/q=Cosmic/)
+  await expect(page.getByRole('article')).toHaveCount(1)
+  await expect(page.getByRole('article').first()).toContainText('Cosmic Bloom #118')
+
+  await page.reload()
+  await page.getByRole('button', { name: 'Fechar cadastro' }).click()
+  await expect(page.getByRole('textbox', { name: 'Buscar NFTs' })).toHaveValue('Cosmic')
+  await expect(page.getByRole('article')).toHaveCount(1)
+})
+
+test('abre filtros acessíveis no mobile sem causar overflow horizontal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Fechar cadastro' }).click()
+  await page.getByRole('button', { name: 'Filtros' }).click()
+
+  const filterDialog = page.getByRole('dialog')
+  await expect(filterDialog).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible()
+  await page.getByRole('button', { name: /Arte digital/ }).last().click()
+  await expect(page).toHaveURL(/category=Arte(?:%20|\+)digital/)
+  await expect(page.getByRole('article')).toHaveCount(3)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+})
+
+test('abre o detalhe por URL direta, limita quantidade e adiciona ao carrinho', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/nft/neon-vessel-552')
+  await expect(page.getByRole('heading', { name: 'Neon Vessel #552' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/nft-detail.png', fullPage: true })
+  await page.getByRole('button', { name: 'Aumentar quantidade' }).click()
+  await page.getByRole('button', { name: 'Adicionar ao carrinho' }).click()
+  await expect(page.locator('.detail-feedback')).toContainText('2 itens adicionados ao carrinho')
+  await expect(page.getByRole('button', { name: 'Diminuir quantidade' })).toBeEnabled()
+})
+
+test('apresenta estado acessível para NFT inexistente', async ({ page }) => {
+  await page.goto('/nft/nft-que-nao-existe')
+  await expect(page.getByRole('heading', { name: 'Esta peça não está disponível.' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Voltar ao mercado' })).toBeVisible()
+})
+
+test('mantém o carrinho após refresh, aplica cupom e remove itens', async ({ page }) => {
+  await page.goto('/nft/neon-vessel-552')
+  await page.getByRole('button', { name: 'Adicionar ao carrinho' }).click()
+  await page.getByRole('link', { name: /Ver carrinho/ }).click()
+  await expect(page.getByRole('heading', { name: 'Carrinho' })).toBeVisible()
+  await expect(page.locator('.cart-item')).toHaveCount(1)
+  await page.screenshot({ path: 'test-results/cart.png', fullPage: true })
+
+  await page.reload()
+  await expect(page.locator('.cart-item')).toHaveCount(1)
+  await page.getByLabel('Código do cupom').fill('INVALIDO')
+  await page.getByRole('button', { name: 'Aplicar' }).click()
+  await expect(page.getByRole('alert')).toContainText('Cupom inválido ou expirado')
+
+  await page.getByLabel('Código do cupom').fill('KURIO10')
+  await page.getByRole('button', { name: 'Aplicar' }).click()
+  await expect(page.getByRole('status')).toContainText('Cupom KURIO10 aplicado')
+  await expect(page.locator('.summary-total')).toContainText('1.7935 ETH')
+
+  await page.getByRole('button', { name: 'Remover Neon Vessel #552' }).click()
+  await expect(page.getByText('Seu carrinho está vazio.')).toBeVisible()
+})
