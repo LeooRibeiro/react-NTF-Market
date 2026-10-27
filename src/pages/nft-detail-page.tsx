@@ -2,21 +2,25 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { Link, useParams } from '@tanstack/react-router'
-import { ArrowLeft, Check, Heart, Share2, ShoppingCart, ShieldCheck } from 'lucide-react'
-import { getNft } from '../features/catalog/catalog-api'
+import { ArrowLeft, Heart, Search, Share2, ShoppingCart, Star } from 'lucide-react'
+import { getCatalog, getNft } from '../features/catalog/catalog-api'
 import { addCartItem } from '../features/cart/cart-api'
 import { Button } from '@/components/ui/button'
 
 const collectionImages = ['/assets/hero-vessel.png', '/assets/violet-nomad.png', '/assets/ivory-baron.png', '/assets/golden-beat.png']
 const defaultCatalogSearch = { q: '', category: 'Todas', sort: 'recent' as const, page: 1, minPrice: 0, maxPrice: 12.3, network: 'Todas' }
 
+/** Monta galeria, informações, ações de compra e sugestões da coleção selecionada. */
 export function NftDetailPage() {
   const { nftId } = useParams({ from: '/nft/$nftId' })
   const queryClient = useQueryClient()
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [message, setMessage] = useState('')
+  const [favorite, setFavorite] = useState(false)
+  const [activeTab, setActiveTab] = useState<'details' | 'reviews'>('details')
   const nftQuery = useQuery({ queryKey: ['nft', nftId], queryFn: () => getNft(nftId) })
+  const relatedQuery = useQuery({ queryKey: ['related-nfts', nftId], queryFn: () => getCatalog({ q: '', category: 'Todas', sort: 'recent', page: 1, minPrice: 0, maxPrice: 12.3, network: 'Todas' }) })
   const addMutation = useMutation({
     mutationFn: () => addCartItem(nftId, quantity),
     onSuccess: async (cart) => {
@@ -41,6 +45,7 @@ export function NftDetailPage() {
     ? addMutation.error.response?.data?.message ?? 'Não foi possível adicionar este item.'
     : ''
 
+  /** Copia a URL do NFT e mantém uma mensagem acessível quando a área de transferência falha. */
   async function shareNft() {
     try {
       await navigator.clipboard.writeText(window.location.href)
@@ -62,27 +67,21 @@ export function NftDetailPage() {
 
       <section className="detail-layout">
         <div className="detail-gallery">
-          <div className="detail-main-image"><img src={image} alt={`${nft.name}, arte digital criada por ${nft.artist}`} /><span className="detail-edition">EDIÇÃO LIMITADA</span></div>
-          <div className="detail-thumbnails" aria-label="Galeria da coleção">{collectionImages.map((src, index) => <button key={`${src}-${index}`} type="button" className={(selectedImage ?? coverImage) === src ? 'selected' : ''} onClick={() => setSelectedImage(src)} aria-label={`Ver imagem ${index + 1}`}><img src={src} alt="" /></button>)}</div>
-          <div className="detail-about"><h2>Sobre a coleção</h2><p>Personagens únicos que exploram um universo de arte digital, identidade e expressão criativa.</p><Link to="/" search={defaultCatalogSearch}>Ver coleção <span>↗</span></Link></div>
+          <div className="detail-gallery-row"><div className="detail-thumbnails" aria-label="Galeria da coleção">{collectionImages.map((src, index) => <button key={`${src}-${index}`} type="button" className={(selectedImage ?? coverImage) === src ? 'selected' : ''} onClick={() => setSelectedImage(src)} aria-label={`Ver imagem ${index + 1}`}><img src={src} alt="" />{index === 0 && <span className="thumb-creator">KS</span>}</button>)}</div><div className="detail-main-image"><img src={image} alt={`${nft.name}, arte digital criada por ${nft.artist}`} /><button className="detail-zoom" type="button" aria-label="Ver imagem da obra" onClick={() => setSelectedImage(coverImage)}><Search size={17} /></button></div></div>
         </div>
 
         <div className="detail-info">
-          <p className="eyebrow">{nft.category.toUpperCase()} · {nft.network.toUpperCase()}</p>
           <div className="detail-title-row"><h1>{nft.name}</h1><button className="detail-icon" type="button" onClick={() => void shareNft()} aria-label="Compartilhar NFT"><Share2 size={17} /></button></div>
-          <p className="detail-creator">Criado por <strong>{nft.artist}</strong><span className="verified-dot"><Check size={9} /></span></p>
-
-          <div className="price-panel"><span>PREÇO ATUAL</span><div><strong>{nft.price} ETH</strong>{nft.previousPrice && <del>{nft.previousPrice} ETH</del>}</div><small>Preço atualizado pela cotação do marketplace</small></div>
-
-          <div className="detail-edition-row"><div><span>EDIÇÃO</span><strong>#{nft.id.split('-').at(-1)?.replace(/^0/, '')}</strong></div><div className="detail-quantity"><span>QUANTIDADE</span><div><button type="button" aria-label="Diminuir quantidade" disabled={quantity <= 1} onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><span aria-live="polite">{quantity}</span><button type="button" aria-label="Aumentar quantidade" disabled={quantity >= 5} onClick={() => setQuantity((value) => Math.min(5, value + 1))}>+</button></div></div></div>
-
-          <div className="detail-buy-actions"><Button className="detail-add-button" disabled={addMutation.isPending} onClick={() => { setMessage(''); addMutation.mutate() }}><ShoppingCart size={16} />{addMutation.isPending ? 'Adicionando…' : 'Adicionar ao carrinho'}</Button><Button variant="outline" className="detail-favorite-button" type="button" disabled title="Favoritos exigem uma conta; essa etapa vem a seguir" aria-label="Adicionar aos favoritos"><Heart size={17} /></Button></div>
+          <div className="detail-price-rating"><strong>{nft.price} ETH</strong><span aria-label="5 de 5 estrelas">{Array.from({ length: 5 }, (_, index) => <Star key={index} size={12} fill="currentColor" />)} <small>19 avaliações de colecionadores</small></span></div>
+          <div className="detail-copy"><strong>Sobre este NFT:</strong><p>Um colecionável digital finalizado à mão da coleção Kurio Editions, verificado na {nft.network}, com arte desbloqueável e acesso para colecionadores.</p></div>
+          <div className="edition-pills"><strong>Edição:</strong><div><span>1/1</span><span>1/10</span><span className="selected">1/50</span><span>ABERTA</span></div></div>
+          <div className="detail-action-row"><div className="detail-quantity"><button type="button" aria-label="Diminuir quantidade" disabled={quantity <= 1} onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><span aria-live="polite">{quantity}</span><button type="button" aria-label="Aumentar quantidade" disabled={quantity >= 5} onClick={() => setQuantity((value) => Math.min(5, value + 1))}>+</button></div><Button className="detail-add-button" disabled={addMutation.isPending} onClick={() => { setMessage(''); addMutation.mutate() }}><ShoppingCart size={15} />{addMutation.isPending ? 'Adicionando…' : 'Comprar'}</Button><Button variant="outline" className={`detail-favorite-button ${favorite ? 'is-favorite' : ''}`} type="button" aria-label={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'} onClick={() => setFavorite((value) => !value)}><Heart size={16} fill={favorite ? 'currentColor' : 'none'} />Favoritar</Button></div>
           {(message || addError) && <p className={addError ? 'detail-feedback error' : 'detail-feedback'} role={addError ? 'alert' : 'status'}>{addError || message}{message && <Link className="detail-cart-link" to="/cart"> Ver carrinho ↗</Link>}</p>}
-
-          <div className="detail-trust"><ShieldCheck size={16} /><span>Compra protegida · Propriedade verificada</span></div>
-          <div className="detail-attributes"><h2>Detalhes da peça</h2><div><span>Coleção</span><strong>Kurio Apes</strong></div><div><span>Rede</span><strong>{nft.network}</strong></div><div><span>Criador</span><strong>{nft.artist}</strong></div><div><span>Disponibilidade</span><strong>5 edições</strong></div></div>
+          <div className="detail-copy detail-token"><p>ID do token: #{nft.id.split('-').at(-1)?.replace(/^0/, '')}</p><p>Coleção: Kurio Apes</p><p>Atributos: {nft.category}, {nft.network}, Raro</p><button type="button" onClick={() => void shareNft()}>Compartilhar este NFT: <span>in ✉ ♥</span></button></div>
         </div>
       </section>
+      <section className="detail-description"><div className="detail-tabs" role="tablist"><button role="tab" aria-selected={activeTab === 'details'} className={activeTab === 'details' ? 'selected' : ''} onClick={() => setActiveTab('details')}>Detalhes do NFT</button><button role="tab" aria-selected={activeTab === 'reviews'} className={activeTab === 'reviews' ? 'selected' : ''} onClick={() => setActiveTab('reviews')}>Avaliações de colecionadores (19)</button></div>{activeTab === 'details' ? <div className="description-copy"><p>{nft.name} é uma obra digital finalizada à mão da coleção Kurio Editions. Cada atributo fica armazenado nos metadados do token e verificado na {nft.network}. A obra explora identidade, movimento e luz em um mundo digital sem fronteiras.</p><p>A propriedade inclui arte em alta resolução, lançamentos exclusivos para colecionadores e um registro permanente de procedência na rede.</p><strong>Rede:</strong><p>Cunhado na {nft.network} com procedência imutável e metadados armazenados no IPFS.</p><strong>Contrato:</strong><p>Direitos autorais do criador: 5% nas vendas secundárias, pagos automaticamente.</p><strong>Direitos autorais:</strong><p>0x7A42...19E8 · Contrato inteligente ERC-721 verificado.</p></div> : <div className="description-copy"><p>★★★★★ <strong>5,0</strong> · 19 avaliações verificadas de colecionadores.</p><p>“Uma peça incrível, com acabamento e detalhes excelentes.”</p></div>}</section>
+      <section className="related-section"><h2>Mais desta coleção</h2><div className="related-grid">{(relatedQuery.data?.items ?? []).filter((item) => item.id !== nft.id).slice(0, 5).map((item) => <article className="nft-card" key={item.id}><Link className="nft-art-link" to="/nft/$nftId" params={{ nftId: item.id }}><img className="nft-art" src={item.image} alt={item.name} loading="lazy" /></Link><div className="nft-meta"><Link className="nft-title" to="/nft/$nftId" params={{ nftId: item.id }}>{item.name}</Link></div><div className="nft-price"><strong>{item.price} ETH</strong></div></article>)}</div><div className="related-dots" aria-label="Itens relacionados"><span /><span className="active" /><span /></div></section>
       <footer className="footer"><span>© 2026 KURIO</span><span>Descubra. Colecione. Seja original.</span></footer>
     </main>
   )

@@ -8,16 +8,19 @@ import { Input } from '@/components/ui/input'
 import { getCart, getCartQuote, multiplyEth, removeCartItem, updateCartItem } from '../features/cart/cart-api'
 
 const defaultCatalogSearch = { q: '', category: 'Todas', sort: 'recent' as const, page: 1, minPrice: 0, maxPrice: 12.3, network: 'Todas' }
+const couponStorageKey = 'kurio-cart-coupon-v1'
 
+/** Formata o total decimal retornado pela API e mostra zero enquanto a cotação carrega. */
 function formatEth(value: string | undefined) {
   const amount = value ?? '0.0'
   return `${amount} ETH`
 }
 
+/** Mantém quantidades, remoção, cupom e resumo do carrinho sincronizados com a API. */
 export function CartPage() {
   const queryClient = useQueryClient()
   const [couponInput, setCouponInput] = useState('')
-  const [appliedCoupon, setAppliedCoupon] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState(() => localStorage.getItem(couponStorageKey) ?? '')
   const cartQuery = useQuery({ queryKey: ['cart'], queryFn: getCart })
   const quoteQuery = useQuery({
     queryKey: ['cart-quote', cartQuery.data?.items.map(({ nftId, quantity }) => [nftId, quantity]), appliedCoupon],
@@ -36,9 +39,12 @@ export function CartPage() {
     ? quoteQuery.error.response?.data?.message ?? 'Não foi possível validar o cupom.'
     : ''
 
+  /** Submete o código digitado e persiste a escolha para manter o cupom no checkout. */
   function applyCoupon(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setAppliedCoupon(couponInput.trim())
+    const coupon = couponInput.trim()
+    setAppliedCoupon(coupon)
+    localStorage.setItem(couponStorageKey, coupon)
   }
 
   const cart = cartQuery.data
@@ -76,11 +82,11 @@ export function CartPage() {
                 <Button type="submit" className="coupon-submit" disabled={quoteQuery.isFetching}>Aplicar</Button>
               </form>
               {quoteError && <p className="coupon-feedback error" role="alert">{quoteError}</p>}
-              {quote?.coupon && <p className="coupon-feedback" role="status">Cupom {quote.coupon} aplicado: 10% de desconto <button type="button" aria-label="Remover cupom" onClick={() => { setAppliedCoupon(''); setCouponInput('') }}><X size={12} /></button></p>}
+              {quote?.coupon && <p className="coupon-feedback" role="status">Cupom {quote.coupon} aplicado: 10% de desconto <button type="button" aria-label="Remover cupom" onClick={() => { setAppliedCoupon(''); setCouponInput(''); localStorage.removeItem(couponStorageKey) }}><X size={12} /></button></p>}
               <div className="summary-lines"><div><span>Subtotal</span><strong>{formatEth(quote?.subtotal)}</strong></div><div><span>Desconto</span><strong>{quote?.discount && quote.discount !== '0.0' ? `− ${quote.discount} ETH` : '—'}</strong></div><div><span>Taxa de rede</span><strong>{formatEth(quote?.networkFee)}</strong></div></div>
               <div className="summary-total"><span>Total estimado</span><strong>{formatEth(quote?.total)}</strong></div>
               <p className="quote-note">O valor final será confirmado com a cotação atual antes do pagamento.</p>
-              <Button className="checkout-button" disabled title="O pagamento será implementado na próxima etapa">Continuar para pagamento</Button>
+              <Link className="checkout-button checkout-link" to="/checkout">Continuar para pagamento</Link>
             </aside>
           </div>
         )}

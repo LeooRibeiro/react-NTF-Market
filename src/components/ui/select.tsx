@@ -5,24 +5,28 @@ import { cn } from "cn"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { Select as SelectPrimitive } from "radix-ui"
 
+/** Controla o valor selecionado e abertura da lista de opções. */
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />
 }
 
+/** Agrupa opções relacionadas dentro da lista. */
 function SelectGroup({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Group>) {
   return <SelectPrimitive.Group data-slot="select-group" {...props} />
 }
 
+/** Apresenta a opção atualmente selecionada. */
 function SelectValue({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />
 }
 
+/** Abre a lista e mostra o valor ou placeholder do seletor. */
 function SelectTrigger({
   className,
   size = "default",
@@ -49,6 +53,7 @@ function SelectTrigger({
   )
 }
 
+/** Exibe a lista de opções posicionada em relação ao seletor. */
 function SelectContent({
   className,
   children,
@@ -86,6 +91,7 @@ function SelectContent({
   )
 }
 
+/** Identifica visualmente um grupo de opções. */
 function SelectLabel({
   className,
   ...props
@@ -99,6 +105,7 @@ function SelectLabel({
   )
 }
 
+/** Renderiza uma opção selecionável da lista. */
 function SelectItem({
   className,
   children,
@@ -126,6 +133,7 @@ function SelectItem({
   )
 }
 
+/** Separa visualmente conjuntos de opções. */
 function SelectSeparator({
   className,
   ...props
@@ -139,6 +147,7 @@ function SelectSeparator({
   )
 }
 
+/** Permite rolar a lista de opções para cima. */
 function SelectScrollUpButton({
   className,
   ...props
@@ -157,6 +166,7 @@ function SelectScrollUpButton({
   )
 }
 
+/** Permite rolar a lista de opções para baixo. */
 function SelectScrollDownButton({
   className,
   ...props

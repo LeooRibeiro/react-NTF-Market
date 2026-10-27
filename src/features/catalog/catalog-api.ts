@@ -1,4 +1,5 @@
 import { api } from '../../lib/api'
+import type { Collector } from '../auth/auth-api'
 
 export const sortOptions = ['recent', 'price-asc', 'price-desc'] as const
 export type SortOption = (typeof sortOptions)[number]
@@ -33,11 +34,13 @@ export type CatalogResult = {
   pageSize: number
 }
 
+/** Busca a página do catálogo usando busca, filtros, ordenação e paginação da URL. */
 export async function getCatalog(query: CatalogQuery) {
   const { data } = await api.get<CatalogResult>('/nfts', { params: query })
   return data
 }
 
+/** Consulta os dados de uma peça pelo identificador usado na rota de detalhe. */
 export async function getNft(id: string) {
   const { data } = await api.get<Nft>(`/nfts/${encodeURIComponent(id)}`)
   return data
@@ -49,7 +52,8 @@ export type RegisterInput = {
   password: string
 }
 
+/** Envia os dados validados do formulário para criar uma conta de colecionador. */
 export async function registerAccount(input: RegisterInput) {
-  const { data } = await api.post<{ id: string; username: string; email: string }>('/auth/register', input)
+  const { data } = await api.post<Collector>('/auth/register', input)
   return data
 }

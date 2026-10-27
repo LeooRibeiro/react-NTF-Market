@@ -2,6 +2,7 @@ import * as React from "react"
 import { cn } from "cn"
 import { Slider as SliderPrimitive } from "radix-ui"
 
+/** Renderiza um controle deslizante com um ou mais valores numéricos. */
 function Slider({
   className,
   defaultValue,

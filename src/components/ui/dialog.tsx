@@ -5,30 +5,35 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
 
+/** Mantém o estado aberto/fechado compartilhado pelo conteúdo do modal. */
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
+/** Conecta um controle de interface à abertura do modal. */
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
+/** Renderiza o modal fora da hierarquia visual imediata da página. */
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
+/** Fecha o modal ao ser ativado. */
 function DialogClose({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Close>) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
+/** Escurece o fundo e cobre a página enquanto o modal está aberto. */
 function DialogOverlay({
   className,
   ...props
@@ -45,6 +50,7 @@ function DialogOverlay({
   )
 }
 
+/** Exibe o conteúdo acessível do modal, com opção de botão para fechar. */
 function DialogContent({
   className,
   children,
@@ -79,6 +85,7 @@ function DialogContent({
   )
 }
 
+/** Agrupa título e descrição no cabeçalho do modal. */
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -89,6 +96,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Organiza ações no rodapé e pode incluir um controle de fechamento. */
 function DialogFooter({
   className,
   showCloseButton = false,
@@ -116,6 +124,7 @@ function DialogFooter({
   )
 }
 
+/** Apresenta o título semântico associado ao modal. */
 function DialogTitle({
   className,
   ...props
@@ -129,6 +138,7 @@ function DialogTitle({
   )
 }
 
+/** Apresenta a descrição semântica associada ao modal. */
 function DialogDescription({
   className,
   ...props
