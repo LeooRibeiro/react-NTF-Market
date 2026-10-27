@@ -1,0 +1,1 @@
+The ape artwork thumbnails in this folder are crops from the Figma screenshot shared for the challenge. They keep the prototype self-contained while the original image exports are unavailable. Replace them with the original Figma exports when they can be downloaded.
