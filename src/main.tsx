@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from '@tanstack/react-router'
 import { HomePage } from './pages/home-page'
+import { NftDetailPage } from './pages/nft-detail-page'
+import { CartPage } from './pages/cart-page'
 import './styles.css'
 import { sortOptions } from './features/catalog/catalog-api'
 
@@ -32,7 +34,17 @@ const homeRoute = createRoute({
   },
   component: HomePage,
 })
-const routeTree = rootRoute.addChildren([homeRoute])
+const nftDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/nft/$nftId',
+  component: NftDetailPage,
+})
+const cartRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/cart',
+  component: CartPage,
+})
+const routeTree = rootRoute.addChildren([homeRoute, nftDetailRoute, cartRoute])
 const router = createRouter({ routeTree })
 
 declare module '@tanstack/react-router' {

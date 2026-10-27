@@ -17,8 +17,44 @@ const nfts: Nft[] = [
 ]
 
 const accounts = new Set<string>()
+const cartStorageKey = 'kurio-cart-v1'
+
+function readCart(): Array<{ nftId: string; quantity: number }> {
+  try {
+    const value = localStorage.getItem(cartStorageKey)
+    return value ? JSON.parse(value) as Array<{ nftId: string; quantity: number }> : []
+  } catch {
+    return []
+  }
+}
+
+function cartResponse(items = readCart()) {
+  const resolvedItems = items.flatMap((item) => {
+    const nft = nfts.find((candidate) => candidate.id === item.nftId)
+    return nft ? [{ ...item, nft }] : []
+  })
+  return { items: resolvedItems, totalItems: resolvedItems.reduce((sum, item) => sum + item.quantity, 0) }
+}
+
+function toUnits(value: string) {
+  const [whole = '0', fraction = ''] = value.split('.')
+  return BigInt(whole) * 1_000_000n + BigInt((fraction + '000000').slice(0, 6))
+}
+
+function fromUnits(value: bigint) {
+  const whole = value / 1_000_000n
+  const fraction = (value % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '')
+  return fraction ? `${whole}.${fraction}` : `${whole}.0`
+}
 
 export const handlers = [
+  http.get('/api/nfts/:nftId', async ({ params }) => {
+    await delay(150)
+    const nft = nfts.find((candidate) => candidate.id === params.nftId)
+    if (!nft) return HttpResponse.json({ message: 'NFT não encontrado.' }, { status: 404 })
+    return HttpResponse.json(nft)
+  }),
+
   http.get('/api/nfts', async ({ request }) => {
     await delay(220)
     const params = new URL(request.url).searchParams
@@ -46,6 +82,67 @@ export const handlers = [
     const start = (page - 1) * pageSize
     const result: CatalogResult = { items: filtered.slice(start, start + pageSize), total: filtered.length, page, pageSize }
     return HttpResponse.json(result)
+  }),
+
+  http.get('/api/cart', async () => HttpResponse.json(cartResponse())),
+
+  http.post('/api/cart/items', async ({ request }) => {
+    const body = await request.json() as { nftId?: string; quantity?: number }
+    const nftId = String(body.nftId ?? '')
+    const quantity = Number(body.quantity)
+    const nft = nfts.find((candidate) => candidate.id === nftId)
+    if (!nft) return HttpResponse.json({ message: 'NFT não encontrado.' }, { status: 404 })
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return HttpResponse.json({ message: 'Informe uma quantidade válida.' }, { status: 400 })
+    }
+    const items = readCart()
+    const existing = items.find((item) => item.nftId === nftId)
+    if ((existing?.quantity ?? 0) + quantity > 5) {
+      return HttpResponse.json({ message: 'Quantidade indisponível para esta edição.' }, { status: 409 })
+    }
+    if (existing) existing.quantity += quantity
+    else items.push({ nftId, quantity })
+    localStorage.setItem(cartStorageKey, JSON.stringify(items))
+    return HttpResponse.json(cartResponse(items), { status: 201 })
+  }),
+
+  http.patch('/api/cart/items/:nftId', async ({ params, request }) => {
+    const body = await request.json() as { quantity?: number }
+    const quantity = Number(body.quantity)
+    const items = readCart()
+    const item = items.find((candidate) => candidate.nftId === params.nftId)
+    if (!item) return HttpResponse.json({ message: 'Este item não está no carrinho.' }, { status: 404 })
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 5) {
+      return HttpResponse.json({ message: 'Quantidade indisponível para esta edição.' }, { status: 409 })
+    }
+    item.quantity = quantity
+    localStorage.setItem(cartStorageKey, JSON.stringify(items))
+    return HttpResponse.json(cartResponse(items))
+  }),
+
+  http.delete('/api/cart/items/:nftId', async ({ params }) => {
+    const items = readCart().filter((item) => item.nftId !== params.nftId)
+    localStorage.setItem(cartStorageKey, JSON.stringify(items))
+    return HttpResponse.json(cartResponse(items))
+  }),
+
+  http.post('/api/cart/quote', async ({ request }) => {
+    const body = await request.json() as { coupon?: string }
+    const coupon = (body.coupon ?? '').trim().toUpperCase()
+    if (coupon && coupon !== 'KURIO10') {
+      return HttpResponse.json({ message: 'Cupom inválido ou expirado.' }, { status: 422 })
+    }
+    const cart = cartResponse()
+    const subtotal = cart.items.reduce((sum, item) => sum + toUnits(item.nft.price) * BigInt(item.quantity), 0n)
+    const discount = coupon ? subtotal * 10n / 100n : 0n
+    const networkFee = cart.items.length ? 2_500n : 0n
+    return HttpResponse.json({
+      subtotal: fromUnits(subtotal),
+      discount: fromUnits(discount),
+      networkFee: fromUnits(networkFee),
+      total: fromUnits(subtotal - discount + networkFee),
+      coupon: coupon || null,
+    })
   }),
 
   http.post('/api/auth/register', async ({ request }) => {

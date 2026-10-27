@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { isAxiosError } from 'axios'
 import {
   Check, ChevronLeft, ChevronRight, Eye, EyeOff, Heart,
   LogIn, Search, ShoppingCart, SlidersHorizontal, X,
 } from 'lucide-react'
 import { getCatalog, registerAccount, type CatalogQuery, type Nft } from '../features/catalog/catalog-api'
+import { getCart } from '../features/cart/cart-api'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -44,15 +46,14 @@ function ProductCard({ nft, index }: { nft: Nft; index: number }) {
   return (
     <article className="nft-card">
       <div className="nft-art-wrap">
-        <img className="nft-art" src={nft.image} alt={`${nft.name}, arte digital criada por ${nft.artist}`} loading={index > 2 ? 'lazy' : 'eager'} />
-        {nft.rarity && <span className="rarity-tag">{nft.rarity}</span>}
+        <Link className="nft-art-link" to="/nft/$nftId" params={{ nftId: nft.id }} aria-label={`Ver ${nft.name}`}><img className="nft-art" src={nft.image} alt={`${nft.name}, arte digital criada por ${nft.artist}`} loading={index > 2 ? 'lazy' : 'eager'} />{nft.rarity && <span className="rarity-tag">{nft.rarity}</span>}</Link>
         <div className="nft-actions" aria-label={`Ações para ${nft.name}`}>
           <button type="button" aria-label="Adicionar ao carrinho" title="Carrinho será conectado na próxima etapa" disabled><ShoppingCart size={18} /></button>
           <button type="button" aria-label="Adicionar aos favoritos" title="Favoritos serão conectados na próxima etapa" disabled><Heart size={18} /></button>
           <button type="button" aria-label="Ver detalhes" title="Detalhes serão conectados na próxima etapa" disabled><Search size={18} /></button>
         </div>
       </div>
-      <div className="nft-meta"><p>{nft.name}</p><span>{nft.artist} <span className="verified-dot" aria-label="Artista verificado"><Check size={9} /></span></span></div>
+      <div className="nft-meta"><Link className="nft-title" to="/nft/$nftId" params={{ nftId: nft.id }}>{nft.name}</Link><span>{nft.artist} <span className="verified-dot" aria-label="Artista verificado"><Check size={9} /></span></span></div>
       <div className="nft-price"><strong>{nft.price} ETH</strong>{nft.previousPrice && <del>{nft.previousPrice} ETH</del>}</div>
     </article>
   )
@@ -159,6 +160,7 @@ export function HomePage() {
   const closeAuth = useCallback(() => setAuthMode(null), [])
   const query: CatalogQuery = { q, category, sort, page, minPrice, maxPrice, network }
   const catalog = useQuery({ queryKey: ['catalog', query], queryFn: () => getCatalog(query) })
+  const cart = useQuery({ queryKey: ['cart'], queryFn: getCart })
 
   function updateSearch(patch: Partial<CatalogQuery>, replace = false) {
     void navigate({
@@ -184,14 +186,14 @@ export function HomePage() {
         <nav className="desktop-nav" aria-label="Navegação principal"><a className="active" href="#home">Início</a><a href="#catalog">Mercado</a><a href="#creators">Criadores</a><a href="#learn">Aprenda</a></nav>
         <div className="header-actions">
           <button className="top-icon" type="button" onClick={() => searchRef.current?.focus()} aria-label="Buscar NFTs"><Search size={17} /></button>
-          <button className="top-icon cart-link" type="button" onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} aria-label="Carrinho, vazio"><ShoppingCart size={17} /><span>0</span></button>
+          <Link className="top-icon cart-link" to="/cart" aria-label={`Carrinho, ${cart.data?.totalItems ?? 0} itens`}><ShoppingCart size={17} /><span>{cart.data?.totalItems ?? 0}</span></Link>
           <button className="login-button" type="button" onClick={() => setAuthMode('login')}><LogIn size={14} /> Entrar</button>
         </div>
       </header>
 
       <section className="hero" id="home">
         <div className="hero-copy"><p className="eyebrow">Bem-vindo à Kurio</p><h1>SEJA DONO DO<br />DA ARTE DIGITAL</h1><p className="hero-subtitle">Descubra NFTs selecionados de criadores talentosos<br className="desktop-only" /> e arte digital verificada.</p><a className="primary-button" href="#catalog">EXPLORAR</a></div>
-        <div className="hero-feature"><img src="/assets/neon-vessel.png" alt="Neon Vessel, macaco colecionável com jaqueta verde" /><div className="feature-label"><span>DESTAQUE DA SEMANA</span><strong>Neon Vessel #552</strong></div></div>
+        <div className="hero-feature"><img src="/assets/hero-vessel.png" alt="Neon Vessel, macaco colecionável com jaqueta verde" /><div className="feature-label"><span>DESTAQUE DA SEMANA</span><strong>Neon Vessel #552</strong></div></div>
       </section>
 
       <section className="marketplace" id="catalog" aria-label="Catálogo de NFTs">

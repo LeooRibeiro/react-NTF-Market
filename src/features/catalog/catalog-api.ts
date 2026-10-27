@@ -38,6 +38,11 @@ export async function getCatalog(query: CatalogQuery) {
   return data
 }
 
+export async function getNft(id: string) {
+  const { data } = await api.get<Nft>(`/nfts/${encodeURIComponent(id)}`)
+  return data
+}
+
 export type RegisterInput = {
   username: string
   email: string

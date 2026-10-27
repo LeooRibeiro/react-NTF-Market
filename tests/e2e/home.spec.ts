@@ -52,3 +52,43 @@ test('abre filtros acessíveis no mobile sem causar overflow horizontal', async 
   await expect(page.getByRole('article')).toHaveCount(3)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
 })
+
+test('abre o detalhe por URL direta, limita quantidade e adiciona ao carrinho', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/nft/neon-vessel-552')
+  await expect(page.getByRole('heading', { name: 'Neon Vessel #552' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/nft-detail.png', fullPage: true })
+  await page.getByRole('button', { name: 'Aumentar quantidade' }).click()
+  await page.getByRole('button', { name: 'Adicionar ao carrinho' }).click()
+  await expect(page.locator('.detail-feedback')).toContainText('2 itens adicionados ao carrinho')
+  await expect(page.getByRole('button', { name: 'Diminuir quantidade' })).toBeEnabled()
+})
+
+test('apresenta estado acessível para NFT inexistente', async ({ page }) => {
+  await page.goto('/nft/nft-que-nao-existe')
+  await expect(page.getByRole('heading', { name: 'Esta peça não está disponível.' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Voltar ao mercado' })).toBeVisible()
+})
+
+test('mantém o carrinho após refresh, aplica cupom e remove itens', async ({ page }) => {
+  await page.goto('/nft/neon-vessel-552')
+  await page.getByRole('button', { name: 'Adicionar ao carrinho' }).click()
+  await page.getByRole('link', { name: /Ver carrinho/ }).click()
+  await expect(page.getByRole('heading', { name: 'Carrinho' })).toBeVisible()
+  await expect(page.locator('.cart-item')).toHaveCount(1)
+  await page.screenshot({ path: 'test-results/cart.png', fullPage: true })
+
+  await page.reload()
+  await expect(page.locator('.cart-item')).toHaveCount(1)
+  await page.getByLabel('Código do cupom').fill('INVALIDO')
+  await page.getByRole('button', { name: 'Aplicar' }).click()
+  await expect(page.getByRole('alert')).toContainText('Cupom inválido ou expirado')
+
+  await page.getByLabel('Código do cupom').fill('KURIO10')
+  await page.getByRole('button', { name: 'Aplicar' }).click()
+  await expect(page.getByRole('status')).toContainText('Cupom KURIO10 aplicado')
+  await expect(page.locator('.summary-total')).toContainText('1.7935 ETH')
+
+  await page.getByRole('button', { name: 'Remover Neon Vessel #552' }).click()
+  await expect(page.getByText('Seu carrinho está vazio.')).toBeVisible()
+})
