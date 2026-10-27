@@ -4,6 +4,84 @@ Implemente o **NFT Marketplace** em React e TypeScript, seguindo o [layout no Fi
 
 O desafio avalia fidelidade visual, qualidade das interações, integração com APIs, gerenciamento de estado assíncrono, tempo real, acessibilidade e performance.
 
+> Este README mantém a especificação original do desafio como referência. A seção [Auditoria preliminar da implementação](#auditoria-preliminar-da-implementação) separa o que existe no código das pendências; os requisitos da especificação não devem ser interpretados como funcionalidades já concluídas.
+
+## Execução local
+
+### Requisitos e instalação
+
+- Node.js e npm compatíveis com as versões declaradas pelo Vite 7.
+- Para os testes E2E, Microsoft Edge instalado. O Playwright usa o projeto Chromium pelo canal `msedge`.
+
+```bash
+npm ci
+npm run dev
+```
+
+O Vite informa a URL local ao iniciar. Os mocks MSW são ativados por padrão antes da montagem da aplicação. Não há API externa necessária para navegar pelos fluxos simulados.
+
+### Credenciais fictícias
+
+- E-mail: `demo@kurio.art`
+- Senha: `KurioPass123`
+
+O login social também é simulado. Essas credenciais e os dados salvos no navegador são apenas para demonstração local.
+
+### Variáveis de ambiente
+
+Não há variável obrigatória para executar o projeto. `VITE_ENABLE_MOCKS` é opcional e permanece ativada quando não está definida. Defina `VITE_ENABLE_MOCKS=false` somente se existir uma API compatível em `/api`; este repositório não configura um backend real nem um proxy para ele.
+
+### Comandos disponíveis
+
+| Objetivo | Comando | Observação |
+| --- | --- | --- |
+| Desenvolvimento com MSW | `npm run dev` | Os mocks iniciam por padrão. |
+| Verificação de tipos | `npm run typecheck` | Executa `tsc -b --pretty`. |
+| Build de produção | `npm run build` | Executa typecheck do build e `vite build`. |
+| Preview local do build | `npm run preview -- --host 127.0.0.1 --port 4173` | Execute após o build. |
+| Testes E2E | `npm run test:e2e` | Playwright, Chromium pelo canal Edge; requer navegador instalado. |
+| Instalar navegador E2E | `npx playwright install msedge` | Baixa o navegador usado pela configuração atual. |
+
+Não existe script de lint configurado no `package.json`.
+
+### Cenários manuais com os mocks
+
+1. Entre com as credenciais de demonstração e navegue pelo catálogo, detalhe e carrinho.
+2. No checkout, selecione o resultado de pagamento desejado. O cenário de timeout cria o pedido e simula uma resposta de rede perdida; use **Recuperar tentativa** para repetir com a mesma chave de idempotência.
+3. Para observar eventos em tempo real, abra o console do navegador na aplicação e execute, por exemplo:
+
+```js
+__kurioUpdateNftPrice('neon-vessel-552', '2.49')
+__kurioUpdateNftAvailability('neon-vessel-552', false)
+__kurioUpdateOrderStatus('ID_DO_PEDIDO', 'confirmed')
+```
+
+Os helpers estão disponíveis quando o worker MSW inicia. `__kurioResetData()` limpa carrinho, cupom, pedidos, favoritos, carteiras e perfis e restaura o catálogo; hoje o reset mantém a sessão e contas cadastradas no navegador.
+
+### Auditoria Lighthouse
+
+A auditoria deve usar o build de produção em preview, não o servidor de desenvolvimento. O Lighthouse não é dependência do projeto; `npx` o executa sem adicioná-lo ao `package.json` ou ao lockfile.
+
+```powershell
+npm run build
+npm run preview -- --host 127.0.0.1 --port 4173
+```
+
+Em outro terminal PowerShell, crie a pasta de relatórios e execute uma medição mobile e uma desktop para cada página. Repita cada comando três vezes, alterando o sufixo `run-1` para `run-2` e `run-3`:
+
+```powershell
+New-Item -ItemType Directory -Force lighthouse-reports
+npx --yes lighthouse --version
+npx --yes lighthouse http://127.0.0.1:4173/ --output html --output-path=./lighthouse-reports/home-mobile-run-1.html
+npx --yes lighthouse http://127.0.0.1:4173/ --preset=desktop --output html --output-path=./lighthouse-reports/home-desktop-run-1.html
+npx --yes lighthouse http://127.0.0.1:4173/nft/neon-vessel-552 --output html --output-path=./lighthouse-reports/detail-mobile-run-1.html
+npx --yes lighthouse http://127.0.0.1:4173/nft/neon-vessel-552 --preset=desktop --output html --output-path=./lighthouse-reports/detail-desktop-run-1.html
+```
+
+O Lighthouse usa o perfil mobile por padrão; `--preset=desktop` seleciona desktop. Registre a versão exibida por `lighthouse --version`, as versões do Node.js/npm e do navegador, as condições da máquina e a mediana das três execuções por categoria e perfil. Os relatórios e as pontuações ainda precisam ser gerados; nenhum resultado é presumido neste README. Para uma auditoria reproduzível ao longo do tempo, fixe a versão do CLI antes de versionar os relatórios.
+
+Consulte [ARCHITECTURE.md](./ARCHITECTURE.md) para contratos REST, sessão, persistência, cache, eventos Socket.IO e limitações conhecidas.
+
 ## 1. Escopo
 
 Entregue os fluxos de descoberta, compra e conta do colecionador, com versões desktop e mobile. APIs, autenticação, carteiras e pagamentos devem funcionar com dados simulados. Integrações reais com blockchain, extensões de carteira e gateways de pagamento estão fora do escopo.
@@ -260,3 +338,44 @@ Documente os contratos REST e eventos, a política de sessão, o estado do carri
 Disponibilize comandos para desenvolvimento com mocks, build, preview, verificação de tipos, lint, testes Playwright e auditoria Lighthouse.
 
 A entrega deve executar a partir de um checkout limpo, sem depender de serviços privados ou do backend de produção.
+
+## Auditoria preliminar da implementação
+
+Esta é uma revisão estática do código e da configuração disponíveis no repositório. Não representa execução de testes, typecheck, Lighthouse ou validação visual em navegador.
+
+| Área | Estado observado | Próximo passo |
+| --- | --- | --- |
+| Catálogo, detalhe e filtros na URL | Implementados com consultas Axios/MSW e parâmetros na rota. | Validar manualmente combinações, histórico, estados vazios e mobile. |
+| Carrinho, cupom e cotação | Implementados com persistência local e validação simulada. | Revalidar manualmente todas as falhas e alterações em tempo real. |
+| Pedido, idempotência e estados | Há cenários de confirmado, recusado, pendente e timeout; o pedido guarda um snapshot. | Conferir manualmente recuperação após refresh/reconexão e transições terminais. |
+| Perfil, favoritos e carteiras | Há páginas e endpoints simulados; favoritos e perfis são guardados por identificador de usuário. | Validar erros, persistência e alternância entre contas. |
+| Isolamento de sessão | **Pendente.** Carrinho e carteiras usam chaves globais no `localStorage`, e consultas privadas usam chaves de cache sem o identificador da conta. O logout atualiza a sessão no cache, mas não limpa todos os dados privados. | Isolar persistência/cache por usuário e limpar dados/subscriptions ao sair ou trocar de conta. |
+| Expiração de sessão | **Pendente.** A sessão mock é persistida, mas não há expiração temporal reproduzível nem cenário dedicado para expiração durante o checkout. | Criar cenário controlável e documentar retomada do fluxo. |
+| MSW e condições de rede | Os handlers REST estão separados por área; há atrasos fixos, timeout de compra e eventos Socket.IO simulados. | Tornar latência/falhas configuráveis, cobrir 4xx/5xx e respostas fora de ordem e completar o reset determinístico. |
+| Playwright | Existem testes E2E em `tests/e2e`; a configuração usa Chromium pelo canal Microsoft Edge e mantém trace/screenshot em falha. | Completar os cenários restantes da seção 9, adicionar baselines visuais/relatórios e executar manualmente em desktop e mobile. |
+| Lighthouse | **Pendente.** Não há script ou relatórios versionados. | Seguir os comandos acima, executar três medições por página/perfil e registrar medianas e ambiente. |
+| Lint | **Não configurado.** Não existe script ou configuração de lint. | Decidir se o escopo exige lint e, se sim, selecionar/configurar ferramenta em outra etapa. |
+| Deploy | **Pendente por decisão do usuário.** | Publicar na Vercel e validar acesso direto/refresh das rotas após a publicação. |
+
+Os pontos pendentes acima são itens identificados pela leitura do código, não funcionalidades que foram implementadas nesta auditoria documental. A especificação detalhada do desafio permanece nas seções seguintes; para o desenho atual da implementação, consulte [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## Mapa do frontend
+
+| Área | Local |
+| --- | --- |
+| Menu compartilhado | `src/components/market-header.tsx` |
+| Tela inicial e catálogo | `src/pages/home-page.tsx` (`HomePage`, `FilterPanel`, `FeaturedDeal`, `ProductCard`) |
+| Detalhe do NFT | `src/pages/nft-detail-page.tsx` |
+| Painel modal do carrinho e pagamento | `src/components/cart-checkout-modal.tsx` |
+| Itens, cupons e resumo do carrinho | `src/pages/cart-page.tsx` |
+| Login do checkout, carteira e pedido | `src/pages/checkout-page.tsx` |
+| Confirmação do pedido | `src/pages/order-page.tsx` |
+| Rotas e layout raiz | `src/main.tsx` |
+| Regras e dados simulados da API | `src/mocks/handlers.ts` |
+| Clientes de API por funcionalidade | `src/features/{catalog,cart,auth,orders}` |
+| Componentes de interface base (shadcn/ui) | `src/components/ui` |
+| Shell compartilhado em utilitários Tailwind | `src/lib/marketplace-styles.ts` |
+| Tema, tipografia, templates de grid e ajustes de Radix/animação | `src/styles.css` |
+| Fluxos de navegador | `tests/e2e/home.spec.ts` |
+
+Os layouts e estilos comuns ficam nas classes Tailwind junto ao JSX. Valores de cor recorrentes usam nomes do tema, como `bg-market-surface` e `text-market-accent`; para colunas específicas, o JSX usa classes nomeadas como `marketplace-grid` e `detail-layout-grid`. `src/styles.css` concentra os tokens, templates que não cabem na escala padrão, tipografia global, animações e ajustes internos do Radix.

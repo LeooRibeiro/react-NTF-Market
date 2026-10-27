@@ -1,28 +1,31 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, Outlet, useNavigate, useSearch } from '@tanstack/react-router'
-import { isAxiosError } from 'axios'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import {
-  Check, ChevronLeft, ChevronRight, Eye, EyeOff, Heart,
+  Check, ChevronLeft, ChevronRight, Heart,
   LogIn, Search, ShoppingCart, SlidersHorizontal, X,
 } from 'lucide-react'
-import { getCatalog, registerAccount, type CatalogQuery, type Nft } from '../features/catalog/catalog-api'
-import { getCart } from '../features/cart/cart-api'
-import { getSession, loginAccount, loginWithProvider, logoutAccount } from '../features/auth/auth-api'
+import { getCatalog, type CatalogQuery, type CatalogResult, type Nft } from '../features/catalog/catalog-api'
+import { addCartItem, getCart } from '../features/cart/cart-api'
+import { useFavorites } from '../features/favorites/favorites-api'
+import { getSession } from '../features/auth/auth-api'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { MarketHeader } from '../components/market-header'
+import { marketShellClass } from '../lib/marketplace-styles'
+import { AuthModal, type AuthMode } from '../components/auth-modal'
+import { MarketplaceBelowSections } from '../components/marketplace-below-sections'
 
 const categories = [
   ['Arte digital', 33], ['Fotografia', 12], ['Música', 65], ['Arte 3D', 39],
   ['Colecionáveis', 23], ['Generativa', 17], ['Jogos', 19], ['Assinaturas', 13], ['Utilidade', 18],
 ] as const
 const networks = [['Ethereum', 119], ['Polygon', 78], ['Solana', 86]] as const
+const defaultCatalogSearch = { q: '', category: 'Todas', sort: 'recent' as const, page: 1, minPrice: 0, maxPrice: 12.3, network: 'Todas' }
 
-type AuthMode = 'login' | 'register' | null
 
 const spotlightItems = [
   { id: 'emerald-ape-042', name: 'Emerald Ape #042', price: '1.19', image: '/assets/emerald-ape.png', badge: 'EDIÇÃO LIMITADA' },
@@ -31,20 +34,20 @@ const spotlightItems = [
 ]
 
 /** Alterna uma oferta em destaque por tempo e direciona cada item ao próprio detalhe. */
-function FeaturedDeal() {
+function FeaturedDeal({ insideFilterSheet = false }: { insideFilterSheet?: boolean }) {
   const [index, setIndex] = useState(0)
   useEffect(() => {
     const timer = window.setInterval(() => setIndex((current) => (current + 1) % spotlightItems.length), 12_000)
     return () => window.clearInterval(timer)
   }, [])
   const item = spotlightItems[index]!
-  return <section className="featured-deal" aria-label="NFT em destaque">
-    <div className="featured-deal-heading"><h2>Oferta limitada</h2><span>AO VIVO</span></div>
-    <Link className="featured-deal-art" to="/nft/$nftId" params={{ nftId: item.id }}><img src={item.image} alt={item.name} /><span>{item.badge}</span></Link>
-    <Link className="featured-deal-title" to="/nft/$nftId" params={{ nftId: item.id }}>{item.name}</Link>
-    <div className="featured-deal-price"><span>Preço especial</span><strong>{item.price} ETH</strong></div>
-    <div className="deal-progress"><span key={item.id} /></div>
-    <p>O destaque muda automaticamente a cada 12 segundos.</p>
+  return <section className={`featured-deal mt-7.5 border-t border-border pt-3.5 ${insideFilterSheet ? 'max-tablet:block' : 'max-tablet:hidden'}`} aria-label="NFT em destaque">
+    <div className="featured-deal-heading mb-2.5 flex items-center justify-between gap-1.5"><h2 className="m-0 text-mb font-bold">Oferta limitada</h2><span className="rounded-sm bg-border px-1 py-0.5 text-xs tracking-wider text-market-accent">AO VIVO</span></div>
+    <Link className="featured-deal-art relative block aspect-card overflow-hidden rounded-md bg-market-surface" to="/nft/$nftId" params={{ nftId: item.id }} search={defaultCatalogSearch}><img className="size-full animate-deal-fade object-cover" src={item.image} alt={item.name} /><span className="absolute bottom-1.5 left-1.5 rounded-sm bg-primary px-1.5 py-1 text-xs font-bold text-market-deep">{item.badge}</span></Link>
+    <Link className="featured-deal-title mt-2 block overflow-hidden text-ellipsis whitespace-nowrap text-xs text-foreground" to="/nft/$nftId" params={{ nftId: item.id }} search={defaultCatalogSearch}>{item.name}</Link>
+    <div className="featured-deal-price mt-1.5 flex items-center justify-between text-xs text-market-ink-muted"><span>Preço especial</span><strong className="text-xs text-market-accent">{item.price} ETH</strong></div>
+    <div className="deal-progress mt-2.5 h-0.5 overflow-hidden bg-border"><span className="block size-full origin-left animate-deal-countdown bg-primary" key={item.id} /></div>
+    <p className="mt-1.5 text-xs leading-5 text-market-dim">O destaque muda automaticamente a cada 12 segundos.</p>
   </section>
 }
 
@@ -61,164 +64,81 @@ function FilterPanel({ category, network, priceRange, onPriceRangeChange, onSear
   const min = priceRange[0] ?? 0
   const max = priceRange[1] ?? 12.3
   return <>
-    <div className="filter-group"><h2>Coleções</h2><Button variant="ghost" className={category === 'Todas' ? 'filter-row selected' : 'filter-row'} onClick={() => onSearchChange({ category: 'Todas' })}>Todas <span>(12)</span></Button>{categories.map(([name, count]) => <Button variant="ghost" key={name} className={category === name ? 'filter-row selected' : 'filter-row'} onClick={() => onSearchChange({ category: name })}>{name}<span>({count})</span></Button>)}</div>
-    <div className="filter-group price-group"><h2>Faixa de preço</h2><Slider aria-label="Faixa de preço em ETH" className="price-slider" min={0} max={12.3} step={0.01} value={priceRange} onValueChange={onPriceRangeChange} /><p>Preço: {min.toFixed(2).replace('.', ',')} – {max.toFixed(2).replace('.', ',')} ETH</p><Button className="apply-button" onClick={() => onSearchChange({ minPrice: min, maxPrice: max })}>Aplicar</Button></div>
-    <div className="filter-group network-group"><h2>Rede</h2>{networks.map(([name, count]) => <Button variant="ghost" key={name} className={network === name ? 'filter-row selected' : 'filter-row'} onClick={() => onSearchChange({ network: network === name ? 'Todas' : name })}>{name}<span>({count})</span></Button>)}</div>
+    <div className="filter-group mb-7 last:mb-0"><h2 className="mb-2.5 text-mb font-bold">Coleções</h2><Button variant="ghost" className={`filter-row flex h-7 w-full items-center justify-between border-0 bg-transparent px-2 py-1.5 text-left text-xs text-market-ink-muted hover:bg-transparent hover:text-market-accent ${category === 'Todas' ? 'selected text-market-accent' : ''}`} onClick={() => onSearchChange({ category: 'Todas' })}>Todas <span className="text-market-ink-muted">(12)</span></Button>{categories.map(([name, count]) => <Button variant="ghost" key={name} className={`filter-row flex h-7 w-full items-center justify-between border-0 bg-transparent px-2 py-1.5 text-left text-xs text-market-ink-muted hover:bg-transparent hover:text-market-accent ${category === name ? 'selected text-market-accent' : ''}`} onClick={() => onSearchChange({ category: name })}>{name}<span className="text-market-ink-muted">({count})</span></Button>)}</div>
+    <div className="filter-group price-group mb-7 last:mb-0"><h2 className="mb-2 text-xs font-bold">Faixa de preço</h2><Slider aria-label="Faixa de preço em ETH" className="price-slider my-1 h-4 w-full" min={0} max={12.3} step={0.01} value={priceRange} onValueChange={onPriceRangeChange} /><p className="my-2 text-xs text-market-ink-muted">Preço: {min.toFixed(2).replace('.', ',')} – {max.toFixed(2).replace('.', ',')} ETH</p><Button className="apply-button h-6 min-w-16 rounded bg-primary px-2 text-xs font-bold text-market-deep hover:bg-primary" onClick={() => onSearchChange({ minPrice: min, maxPrice: max })}>Aplicar</Button></div>
+    <div className="filter-group network-group mb-7 last:mb-0 pt-px"><h2 className="mb-2.5 text-xs font-bold">Rede</h2>{networks.map(([name, count]) => <Button variant="ghost" key={name} className={`filter-row flex h-7 w-full items-center justify-between border-0 bg-transparent px-2 py-1.5 text-left text-xs text-market-ink-muted hover:bg-transparent hover:text-market-accent ${network === name ? 'selected text-market-accent' : ''}`} onClick={() => onSearchChange({ network: network === name ? 'Todas' : name })}>{name}<span className="text-market-ink-muted">({count})</span></Button>)}</div>
   </>
 }
 
-/** Apresenta uma peça do catálogo com imagem, criador, preço e link para detalhes. */
+/** Apresenta uma peça do catálogo com imagem, criador, preço, favoritos e compra rápida. */
 function ProductCard({ nft, index }: { nft: Nft; index: number }) {
+  const queryClient = useQueryClient()
+  const { isFavorite, toggle: toggleFavorite } = useFavorites()
+  const favorite = isFavorite(nft.id)
+  const addCart = useMutation({
+    mutationFn: () => addCartItem(nft.id, 1),
+    onSuccess: (cart) => {
+      void queryClient.setQueryData(['cart'], cart)
+    },
+  })
+
   return (
-    <article className="nft-card">
-      <div className="nft-art-wrap">
-        <Link className="nft-art-link" to="/nft/$nftId" params={{ nftId: nft.id }} aria-label={`Ver ${nft.name}`}><img className="nft-art" src={nft.image} alt={`${nft.name}, arte digital criada por ${nft.artist}`} loading={index > 2 ? 'lazy' : 'eager'} />{nft.rarity && <span className="rarity-tag">{nft.rarity}</span>}</Link>
-        <div className="nft-actions" aria-label={`Ações para ${nft.name}`}>
-          <button type="button" aria-label="Adicionar ao carrinho" title="Carrinho será conectado na próxima etapa" disabled><ShoppingCart size={18} /></button>
-          <button type="button" aria-label="Adicionar aos favoritos" title="Favoritos serão conectados na próxima etapa" disabled><Heart size={18} /></button>
-          <button type="button" aria-label="Ver detalhes" title="Detalhes serão conectados na próxima etapa" disabled><Search size={18} /></button>
+    <article className="nft-card min-w-0">
+      <div className="nft-art-wrap group relative aspect-square w-full overflow-hidden bg-market-surface p-1.5">
+        <Link className="nft-art-link absolute inset-1.5 block" to="/nft/$nftId" params={{ nftId: nft.id }} search={defaultCatalogSearch} aria-label={`Ver ${nft.name}`}><img className="nft-art block size-full rounded-xl object-cover" src={nft.image} alt={`${nft.name}, arte digital criada por ${nft.artist}`} loading={index > 2 ? 'lazy' : 'eager'} />{nft.rarity && <span className="rarity-tag absolute left-0 top-0 bg-primary px-2.5 py-1 text-xs font-bold text-market-page">{nft.rarity}</span>}</Link>
+        <div className="nft-actions absolute bottom-1.5 right-1/2 z-10 flex translate-x-1/2 translate-y-1 gap-1 opacity-0 transition duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100" aria-label={`Ações para ${nft.name}`}>
+          <button className="grid size-7 place-items-center rounded-sm bg-market-surface/95 text-foreground hover:text-market-accent transition disabled:opacity-50" type="button" aria-label={`Adicionar ${nft.name} ao carrinho`} title={nft.available === false ? 'Edição esgotada' : 'Adicionar ao carrinho'} disabled={nft.available === false || addCart.isPending} onClick={() => addCart.mutate()}><ShoppingCart size={18} /></button>
+          <button className={`grid size-7 place-items-center rounded-sm bg-market-surface/95 text-foreground hover:text-market-accent transition ${favorite ? 'text-market-accent' : ''}`} type="button" aria-label={favorite ? `Remover ${nft.name} dos favoritos` : `Adicionar ${nft.name} aos favoritos`} title="Favoritar" onClick={() => toggleFavorite(nft.id)}><Heart size={18} fill={favorite ? 'currentColor' : 'none'} /></button>
+          <Link to="/nft/$nftId" params={{ nftId: nft.id }} search={defaultCatalogSearch} className="grid size-7 place-items-center rounded-sm bg-market-surface/95 text-foreground hover:text-market-accent transition" aria-label={`Ver detalhes de ${nft.name}`} title="Ver detalhes"><Search size={18} /></Link>
         </div>
       </div>
-      <div className="nft-meta"><Link className="nft-title" to="/nft/$nftId" params={{ nftId: nft.id }}>{nft.name}</Link><span>{nft.artist} <span className="verified-dot" aria-label="Artista verificado"><Check size={9} /></span></span></div>
-      <div className="nft-price"><strong>{nft.price} ETH</strong>{nft.previousPrice && <del>{nft.previousPrice} ETH</del>}</div>
+      <div className="nft-meta mt-1.5 flex justify-between gap-2 text-xs max-tablet:block"><Link className="nft-title overflow-hidden text-ellipsis whitespace-nowrap" to="/nft/$nftId" params={{ nftId: nft.id }} search={defaultCatalogSearch}>{nft.name}</Link><span className="mt-0.5 block overflow-hidden text-ellipsis whitespace-nowrap text-market-ink-muted md:mt-0 md:inline">{nft.artist} <span className="verified-dot inline-grid size-3 place-items-center rounded-full bg-primary align-middle text-market-deep" aria-label="Artista verificado"><Check size={9} /></span></span></div>
+      <div className="nft-price mt-0.5 flex items-baseline gap-2 text-xs"><strong className="text-market-accent tracking-tight">{nft.price} ETH</strong>{nft.previousPrice && <del className="text-xs text-market-ink-muted">{nft.previousPrice} ETH</del>}{nft.available === false && <span className="text-market-danger">Esgotado</span>}</div>
     </article>
   )
 }
 
-/** Exibe o placeholder enquanto a consulta do catálogo está carregando. */
+/** Exibe o placeholder com shimmer effect enquanto a consulta do catálogo está carregando. */
 function ProductSkeleton() {
-  return <div className="nft-skeleton" aria-hidden="true"><div /><span /><i /></div>
-}
-
-/** Valida e envia cadastro/login, atualiza a sessão no cache e informa o resultado. */
-function AuthModal({ mode, onModeChange, onClose }: { mode: AuthMode; onModeChange: (mode: AuthMode) => void; onClose: () => void }) {
-  const queryClient = useQueryClient()
-  const [showPassword, setShowPassword] = useState(false)
-  const [passwordMismatch, setPasswordMismatch] = useState(false)
-  const [success, setSuccess] = useState('')
-  const formRef = useRef<HTMLFormElement>(null)
-  const register = useMutation({
-    mutationFn: registerAccount,
-    onSuccess: (user) => {
-      queryClient.setQueryData(['session'], user)
-      setSuccess(`Conta criada para ${user.username}. Bem-vindo à Kurio!`)
-    },
-  })
-  const login = useMutation({
-    mutationFn: loginAccount,
-    onSuccess: (user) => {
-      queryClient.setQueryData(['session'], user)
-      setSuccess(`Bem-vindo de volta, ${user.username}!`)
-    },
-  })
-  const socialLogin = useMutation({
-    mutationFn: loginWithProvider,
-    onSuccess: (user) => {
-      queryClient.setQueryData(['session'], user)
-      setSuccess(`Bem-vindo, ${user.username}!`)
-    },
-  })
-  const mutationError = socialLogin.error ?? (mode === 'login' ? login.error : register.error)
-  const apiMessage = mutationError
-    ? isAxiosError<{ message?: string }>(mutationError)
-      ? mutationError.response?.data?.message ?? 'Não foi possível validar sua conta. Tente novamente.'
-      : 'Não foi possível concluir a autenticação. Tente novamente.'
-    : ''
-
-  useEffect(() => {
-    if (!mode) return
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKeyDown)
-    formRef.current?.querySelector<HTMLInputElement>('input')?.focus()
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [mode, onClose])
-
-  if (!mode) return null
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const values = new FormData(event.currentTarget)
-    const password = String(values.get('password') ?? '')
-    const email = String(values.get('email') ?? '')
-    if (mode === 'login') {
-      login.mutate({ email, password })
-      return
-    }
-    const confirmation = String(values.get('confirmPassword') ?? '')
-    if (password !== confirmation) {
-      setPasswordMismatch(true)
-      return
-    }
-    setPasswordMismatch(false)
-    setSuccess('')
-    register.mutate({
-      username: String(values.get('username') ?? ''),
-      email: String(values.get('email') ?? ''),
-      password,
-    })
-  }
-
   return (
-      <Dialog open={Boolean(mode)} onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent showCloseButton={false} className="auth-modal max-w-[calc(100vw-32px)] rounded-none border-0 border-b-[6px] outline-none sm:max-w-none">
-        <DialogTitle className="sr-only">Entrar ou criar conta na Kurio</DialogTitle>
-        <DialogDescription className="sr-only">Acesse sua conta de colecionador ou crie um novo perfil.</DialogDescription>
-        <DialogClose className="modal-close" aria-label="Fechar cadastro"><X size={16} /></DialogClose>
-        <div className="auth-tabs">
-          <button type="button" className={mode === 'login' ? 'selected' : ''} onClick={() => { onModeChange('login'); register.reset(); login.reset(); socialLogin.reset(); setSuccess('') }}>Entrar</button>
-          <span>|</span>
-          <button type="button" className={mode === 'register' ? 'selected' : ''} onClick={() => { onModeChange('register'); register.reset(); login.reset(); socialLogin.reset(); setSuccess('') }}>Criar conta</button>
-        </div>
-        <p className="auth-description">Crie seu perfil de colecionador e conecte uma<br className="desktop-only" /> carteira quando quiser.</p>
-
-        {success ? (
-          <div className="auth-success" role="status"><span><Check size={21} /></span><strong>{success}</strong><button type="button" onClick={onClose}>Continuar explorando</button></div>
-        ) : (
-          <form className="auth-form" ref={formRef} onSubmit={submit}>
-            {mode === 'register' && <label className="sr-only" htmlFor="register-username">Nome de usuário</label>}
-            {mode === 'register' && <Input className="auth-field" id="register-username" name="username" autoComplete="username" placeholder="Nome de usuário" minLength={2} required />}
-            <label className="sr-only" htmlFor="register-email">E-mail</label>
-            <Input className="auth-field" id="register-email" name="email" type="email" autoComplete="email" placeholder="Digite seu e-mail" required />
-            <label className="sr-only" htmlFor="register-password">Senha</label>
-            <div className="password-input"><input id="register-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} placeholder="Senha" minLength={8} required /><button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>{showPassword ? <EyeOff size={15} /> : <Eye size={15} />}</button></div>
-            {mode === 'register' && <label className="sr-only" htmlFor="register-confirm-password">Confirmar senha</label>}
-            {mode === 'register' && <Input className="auth-field" id="register-confirm-password" name="confirmPassword" type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Confirmar senha" minLength={8} required />}
-            {passwordMismatch && <p className="form-error" role="alert">As senhas não coincidem.</p>}
-            {apiMessage && <p className="form-error" role="alert">{apiMessage}</p>}
-            <Button className="auth-submit" type="submit" disabled={register.isPending || login.isPending}>{register.isPending ? 'Criando conta…' : login.isPending ? 'Validando…' : mode === 'register' ? 'Criar conta' : 'Entrar'}</Button>
-          </form>
-        )}
-
-        {!success && <>
-          <div className="auth-divider"><span>Ou continue com</span></div>
-          <Button className="social-button" type="button" disabled={register.isPending || login.isPending || socialLogin.isPending} onClick={() => socialLogin.mutate('google')}><span className="google-mark">G</span> {socialLogin.isPending && socialLogin.variables === 'google' ? 'Conectando ao Google…' : 'Continuar com Google'}</Button>
-          <Button className="social-button" type="button" disabled={register.isPending || login.isPending || socialLogin.isPending} onClick={() => socialLogin.mutate('facebook')}><span className="facebook-mark">f</span> {socialLogin.isPending && socialLogin.variables === 'facebook' ? 'Conectando ao Facebook…' : 'Continuar com Facebook'}</Button>
-        </>}
-      </DialogContent>
-      </Dialog>
+    <div className="min-w-0" aria-hidden="true">
+      <div className="skeleton-shimmer aspect-square w-full rounded-xl p-1.5" />
+      <span className="skeleton-shimmer mt-2 block h-3 w-2/3 rounded" />
+      <i className="skeleton-shimmer mt-1.5 block h-3 w-1/3 rounded not-italic" />
+    </div>
   )
 }
 
 /** Coordena catálogo, filtros na URL, sessão do colecionador e abertura de autenticação. */
 export function HomePage() {
-  const navigate = useNavigate({ from: '/' })
-  const { q, category, sort, page, minPrice, maxPrice, network } = useSearch({ from: '/' })
+  const navigate = useNavigate()
+  const rawSearch = useSearch({ strict: false })
+  const q = rawSearch.q ?? ''
+  const category = rawSearch.category ?? 'Todas'
+  const sort = rawSearch.sort ?? 'recent'
+  const page = rawSearch.page ?? 1
+  const minPrice = rawSearch.minPrice ?? 0
+  const maxPrice = rawSearch.maxPrice ?? 12.3
+  const network = rawSearch.network ?? 'Todas'
   const [searchText, setSearchText] = useState(q)
+  const [lastCatalog, setLastCatalog] = useState<CatalogResult>()
   const [authMode, setAuthMode] = useState<AuthMode>(() => localStorage.getItem('kurio-session-v1') || window.location.pathname !== '/' ? null : 'register')
   const [priceRange, setPriceRange] = useState([minPrice, maxPrice])
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const closeAuth = useCallback(() => setAuthMode(null), [])
   const query: CatalogQuery = { q, category, sort, page, minPrice, maxPrice, network }
-  const catalog = useQuery({ queryKey: ['catalog', query], queryFn: () => getCatalog(query) })
+  const catalog = useQuery({ queryKey: ['catalog', query], queryFn: () => getCatalog(query), placeholderData: keepPreviousData })
+  useEffect(() => {
+    if (catalog.data) setLastCatalog(catalog.data)
+  }, [catalog.data])
   const cart = useQuery({ queryKey: ['cart'], queryFn: getCart })
-  const queryClient = useQueryClient()
   const session = useQuery({ queryKey: ['session'], queryFn: getSession })
-  const logout = useMutation({ mutationFn: logoutAccount, onSuccess: () => { queryClient.setQueryData(['session'], null) } })
 
   function updateSearch(patch: Partial<CatalogQuery>, replace = false) {
     void navigate({
-      search: (previous) => ({ ...previous, ...patch, page: patch.page ?? 1 }),
+      to: '/',
+      search: (previous) => ({ ...defaultCatalogSearch, ...previous, ...patch, page: patch.page ?? 1 }),
       replace,
     })
   }
@@ -231,57 +151,53 @@ export function HomePage() {
     return () => window.clearTimeout(timeout)
   }, [searchText, q])
 
-  const totalPages = catalog.data ? Math.max(1, Math.ceil(catalog.data.total / catalog.data.pageSize)) : 1
+  const visibleCatalog = catalog.data ?? lastCatalog
+  const totalPages = visibleCatalog ? Math.max(1, Math.ceil(visibleCatalog.total / visibleCatalog.pageSize)) : 1
+
+  useEffect(() => {
+    if (catalog.data && catalog.data.total > 0 && page > totalPages) updateSearch({ page: totalPages }, true)
+  }, [catalog.data, page, totalPages])
 
   return (
-    <main className="market-shell home-page">
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="Kurio, página inicial">KURIO</a>
-        <nav className="desktop-nav" aria-label="Navegação principal"><a className="active" href="#home">Início</a><a href="#catalog">Mercado</a><a href="#creators">Criadores</a><a href="#learn">Aprenda</a></nav>
-        <div className="header-actions">
-          <button className="top-icon" type="button" onClick={() => searchRef.current?.focus()} aria-label="Buscar NFTs"><Search size={17} /></button>
-          <Link className="top-icon cart-link" to="/cart" search={{ q, category, sort, page, minPrice, maxPrice, network }} aria-label={`Carrinho, ${cart.data?.totalItems ?? 0} itens`}><ShoppingCart size={17} /><span>{cart.data?.totalItems ?? 0}</span></Link>
-          {session.data ? <button className="login-button profile-button" type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>{session.data.username}<span>Sair</span></button> : <button className="login-button" type="button" onClick={() => setAuthMode('login')}><LogIn size={14} /> Entrar</button>}
-        </div>
-      </header>
+    <main className={`${marketShellClass} home-page`}>
+      <MarketHeader search={{ q, category, sort, page, minPrice, maxPrice, network }} active="home" cartCount={cart.data?.totalItems ?? 0} onSearch={() => searchRef.current?.focus()} accountAction={session.data ? <div className="flex items-center gap-2"><Link to="/profile" search={defaultCatalogSearch} className="hidden sm:inline-flex h-7 items-center rounded border border-border px-2 text-xs text-market-accent hover:border-primary">Perfil</Link><Link to="/wallets" search={defaultCatalogSearch} className="hidden sm:inline-flex h-7 items-center rounded border border-border px-2 text-xs text-market-accent hover:border-primary">Carteiras</Link></div> : <button className="inline-flex h-6 items-center gap-1.5 rounded-md bg-primary px-2 text-xs font-bold text-market-deep hover:bg-primary" type="button" onClick={() => setAuthMode('login')}><LogIn size={14} /> Entrar</button>} />
 
-      <section className="hero" id="home">
-        <div className="hero-copy"><p className="eyebrow">Bem-vindo à Kurio</p><h1>SEJA DONO DO<br />DA ARTE DIGITAL</h1><p className="hero-subtitle">Descubra NFTs selecionados de criadores talentosos<br className="desktop-only" /> e arte digital verificada.</p><a className="primary-button" href="#catalog">EXPLORAR</a></div>
-        <div className="hero-feature"><img src="/assets/hero-vessel.png" alt="Neon Vessel, macaco colecionável com jaqueta verde" /><div className="feature-label"><span>DESTAQUE DA SEMANA</span><strong>Neon Vessel #552</strong></div></div>
+      <section className="hero grid min-h-[400px] hero-layout-grid items-center gap-6 px-0 pb-7 pt-1.5 max-tablet:min-h-0 max-tablet:grid-cols-1 max-tablet:gap-5 max-tablet:py-6">
+        <div className="hero-copy min-w-0 max-tablet:row-start-2"><p className="eyebrow mb-2 text-lg tracking-wide text-foreground">Bem-vindo à Kurio</p><h1 className="hero-title m-0 font-bold tracking-tight max-tablet:text-3xl">SEJA DONO DO FUTURO<br />DA ARTE DIGITAL</h1><p className="hero-subtitle mb-6 mt-3 text-base leading-relaxed text-market-ink-muted max-tablet:mb-4">Descubra NFTs selecionados de criadores emergentes e consagrados. Colecione arte digital rara, apoie artistas e tenha uma parte da cultura da internet.<br className="max-tablet:hidden" /></p><a className="primary-button inline-flex h-7 min-w-24 items-center justify-center rounded-md bg-primary text-xs font-bold text-market-deep transition hover:bg-primary" href="#catalog">EXPLORAR</a></div>
+        <div className="max-h-120 relative  overflow-hidden rounded-xl  max-tablet:order-first  "><img className="size-full object-cover" src="/assets/neon-vessel.png" alt="Neon Vessel, macaco colecionável com jaqueta verde" /><div className="feature-label absolute inset-x-2.5 bottom-2.5 flex items-center justify-between gap-2.5 rounded bg-market-page/90 px-2.5 py-2 text-xs"><span className="text-xs tracking-wider text-market-accent">DESTAQUE DA SEMANA</span><strong className="text-xs text-foreground">Neon Vessel #552</strong></div></div>
       </section>
 
-      <section className="marketplace" id="catalog" aria-label="Catálogo de NFTs">
-        <aside className="filter-sidebar" aria-label="Filtros do catálogo"><FilterPanel category={category} network={network} priceRange={priceRange} onPriceRangeChange={setPriceRange} onSearchChange={updateSearch} /><FeaturedDeal /></aside>
+      <section className="marketplace grid marketplace-grid items-start gap-7 pb-16 max-tablet:grid-cols-1 max-tablet:gap-4" id="catalog" aria-label="Catálogo de NFTs">
+        <aside className="filter-sidebar min-w-0 bg-market-surface px-3.5 pb-3.5 pt-3 max-tablet:hidden" aria-label="Filtros do catálogo"><FilterPanel category={category} network={network} priceRange={priceRange} onPriceRangeChange={setPriceRange} onSearchChange={updateSearch} /><FeaturedDeal /></aside>
 
-        <div className="catalog-content">
-          <div className="catalog-toolbar">
+        <div className="catalog-content min-w-0">
+          <div className="catalog-toolbar mb-4 flex min-h-8 items-start justify-between gap-3 max-tablet:mb-3.5 max-tablet:items-center max-tablet:gap-2">
             <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-              <SheetTrigger asChild><Button className="mobile-filter-button" type="button"><SlidersHorizontal size={15} /> Filtros</Button></SheetTrigger>
-              <SheetContent side="left" className="filter-sheet">
-                <SheetHeader><SheetTitle>Filtros</SheetTitle><SheetDescription>Escolha coleção, preço e rede.</SheetDescription></SheetHeader>
-                <div className="filter-sheet-body"><FilterPanel category={category} network={network} priceRange={priceRange} onPriceRangeChange={setPriceRange} onSearchChange={updateSearch} /><FeaturedDeal /></div>
+              <SheetTrigger asChild><Button className="mobile-filter-button hidden h-7 items-center gap-1.5 rounded border border-border bg-market-surface px-2 text-xs text-market-accent max-tablet:inline-flex" type="button"><SlidersHorizontal size={15} /> Filtros</Button></SheetTrigger>
+              <SheetContent side="left" className="filter-sheet w-full max-w-xs border-r border-border bg-market-surface text-foreground">
+                <SheetHeader><SheetTitle>Filtros</SheetTitle><SheetDescription className="text-xs text-market-ink-muted">Escolha coleção, preço e rede.</SheetDescription></SheetHeader>
+                <div className="filter-sheet-body grid gap-5 overflow-y-auto py-2.5"><FilterPanel category={category} network={network} priceRange={priceRange} onPriceRangeChange={setPriceRange} onSearchChange={updateSearch} /><FeaturedDeal insideFilterSheet /></div>
               </SheetContent>
             </Sheet>
-            <label className="catalog-search"><Search size={16} /><span className="sr-only">Buscar NFTs</span><Input className="catalog-search-input" ref={searchRef} value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Buscar NFTs, coleções ou artistas" /></label>
-            <div className="sort-control"><span>Ordenar por:</span><Select value={sort} onValueChange={(value) => updateSearch({ sort: value as CatalogQuery['sort'] })}><SelectTrigger className="sort-select" aria-label="Ordenar catálogo"><SelectValue /></SelectTrigger><SelectContent className="sort-options"><SelectItem value="recent">Listados recentemente</SelectItem><SelectItem value="price-asc">Menor preço</SelectItem><SelectItem value="price-desc">Maior preço</SelectItem></SelectContent></Select></div>
+            <label className="catalog-search flex min-w-0 flex-1 items-center gap-2 text-market-ink-muted max-tablet:gap-2 max-tablet:rounded border border-transparent max-tablet:border-border max-tablet:pl-2"><Search size={16} /><span className="sr-only">Buscar NFTs</span><Input className="catalog-search-input h-7 w-full border-transparent bg-transparent px-2 text-xs text-foreground shadow-none placeholder:text-market-ink-muted focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary" ref={searchRef} value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Buscar NFTs, coleções ou artistas" /></label>
+            <div className="sort-control flex max-w-56 flex-none items-center gap-1 text-xs text-foreground max-tablet:max-w-1/2 max-tablet:gap-0"><span className="max-tablet:hidden">Ordenar por:</span><Select value={sort} onValueChange={(value) => updateSearch({ sort: value as CatalogQuery['sort'] })}><SelectTrigger className="sort-select h-7 w-40 rounded-none border-0 bg-transparent px-0.5 text-xs text-foreground shadow-none max-tablet:w-28 max-small:w-24 max-small:text-xs"><SelectValue /></SelectTrigger><SelectContent className="sort-options border-border bg-market-surface text-foreground"><SelectItem value="recent">Listados recentemente</SelectItem><SelectItem value="price-asc">Menor preço</SelectItem><SelectItem value="price-desc">Maior preço</SelectItem></SelectContent></Select></div>
           </div>
 
-          <div className="active-filters" aria-live="polite">
-            {category !== 'Todas' && <button type="button" onClick={() => updateSearch({ category: 'Todas' })}>{category}<X size={12} /></button>}
-            {network !== 'Todas' && <button type="button" onClick={() => updateSearch({ network: 'Todas' })}>{network}<X size={12} /></button>}
-            {(minPrice > 0 || maxPrice < 12.3) && <button type="button" onClick={() => updateSearch({ minPrice: 0, maxPrice: 12.3 })}>Faixa de preço<X size={12} /></button>}
+          <div className="active-filters -mt-2 mb-3 flex flex-wrap gap-1.5 empty:hidden" aria-live="polite">
+            {category !== 'Todas' && <button className="inline-flex items-center gap-1.5 rounded-full border border-border bg-market-surface px-2 py-1 text-xs text-market-accent" type="button" onClick={() => updateSearch({ category: 'Todas' })}>{category}<X size={12} /></button>}
+            {network !== 'Todas' && <button className="inline-flex items-center gap-1.5 rounded-full border border-border bg-market-surface px-2 py-1 text-xs text-market-accent" type="button" onClick={() => updateSearch({ network: 'Todas' })}>{network}<X size={12} /></button>}
+            {(minPrice > 0 || maxPrice < 12.3) && <button className="inline-flex items-center gap-1.5 rounded-full border border-border bg-market-surface px-2 py-1 text-xs text-market-accent" type="button" onClick={() => updateSearch({ minPrice: 0, maxPrice: 12.3 })}>Faixa de preço<X size={12} /></button>}
           </div>
 
-          {catalog.isError ? <div className="catalog-state"><strong>Não foi possível carregar o catálogo.</strong><span>Confira sua conexão e tente novamente.</span><button type="button" onClick={() => void catalog.refetch()}>Tentar novamente</button></div> : catalog.isLoading ? <div className="nft-grid" aria-label="Carregando catálogo">{Array.from({ length: 9 }, (_, index) => <ProductSkeleton key={index} />)}</div> : catalog.data?.items.length ? <>
-            <div className="nft-grid" aria-live="polite">{catalog.data.items.map((nft, index) => <ProductCard key={nft.id} nft={nft} index={index} />)}</div>
-            <div className="pagination"><span>{catalog.isFetching ? 'Atualizando…' : `${catalog.data.total} itens encontrados`}</span><div><button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => updateSearch({ page: page - 1 })}><ChevronLeft size={16} /></button><span>Página {page} de {totalPages}</span><div className="pagination-pages" aria-label="Páginas do catálogo">{Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" aria-label={`Ir para página ${pageNumber}`} aria-current={pageNumber === page ? 'page' : undefined} className={pageNumber === page ? 'current' : ''} onClick={() => updateSearch({ page: pageNumber })}>{pageNumber}</button>)}</div><button type="button" aria-label="Próxima página" disabled={page >= totalPages} onClick={() => updateSearch({ page: page + 1 })}><ChevronRight size={16} /></button></div></div>
-          </> : <div className="catalog-state"><strong>Nenhum NFT encontrado</strong><span>Tente ajustar a busca ou remover alguns filtros.</span><button type="button" onClick={() => { setSearchText(''); updateSearch({ q: '', category: 'Todas', network: 'Todas', minPrice: 0, maxPrice: 12.3, page: 1 }) }}>Limpar filtros</button></div>}
+          {catalog.isError && !visibleCatalog ? <div className="catalog-state flex min-h-64 flex-col items-center justify-center gap-2.5 text-center text-xs text-market-ink-muted"><strong className="text-sm text-foreground">Não foi possível carregar o catálogo.</strong><span>Confira sua conexão e tente novamente.</span><button className="rounded border border-border bg-market-surface px-3 py-1.5 text-market-accent" type="button" onClick={() => void catalog.refetch()}>Tentar novamente</button></div> : catalog.isLoading && !visibleCatalog ? <div className="nft-grid grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-3 md:gap-x-4 md:gap-y-5" aria-label="Carregando catálogo">{Array.from({ length: 9 }, (_, index) => <ProductSkeleton key={index} />)}</div> : visibleCatalog?.items.length ? <>
+            <div className="nft-grid grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-3 md:gap-x-4 md:gap-y-5" aria-live="polite">{visibleCatalog.items.map((nft, index) => <ProductCard key={nft.id} nft={nft} index={index} />)}</div>
+            <div className="pagination mt-6 flex items-center justify-between gap-3 text-xs text-market-ink-muted"><span aria-live="polite">{catalog.isError ? 'Falha ao atualizar; exibindo os últimos itens carregados.' : catalog.isFetching ? 'Atualizando…' : `${visibleCatalog.total} itens encontrados`}</span><div className="flex items-center gap-2.5"><button className="grid size-7 place-items-center rounded border border-border bg-market-surface p-0 text-market-accent disabled:cursor-not-allowed disabled:opacity-35" type="button" aria-label="Página anterior" disabled={page <= 1 || catalog.isFetching} onClick={() => updateSearch({ page: page - 1 })}><ChevronLeft size={16} /></button><span>Página {page} de {totalPages}</span><div className="pagination-pages flex gap-1" aria-label="Páginas do catálogo">{Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button className={`grid size-6 place-items-center rounded border border-border bg-market-surface p-0 text-xs text-market-accent disabled:cursor-not-allowed disabled:opacity-35 ${pageNumber === page ? 'current border-primary bg-market-surface text-market-accent' : ''}`} key={pageNumber} type="button" aria-label={`Ir para página ${pageNumber}`} aria-current={pageNumber === page ? 'page' : undefined} disabled={catalog.isFetching} onClick={() => updateSearch({ page: pageNumber })}>{pageNumber}</button>)}</div><button className="grid size-7 place-items-center rounded border border-border bg-market-surface p-0 text-market-accent disabled:cursor-not-allowed disabled:opacity-35" type="button" aria-label="Próxima página" disabled={page >= totalPages || catalog.isFetching} onClick={() => updateSearch({ page: page + 1 })}><ChevronRight size={16} /></button></div></div>
+          </> : <div className="catalog-state flex min-h-64 flex-col items-center justify-center gap-2.5 text-center text-xs text-market-ink-muted"><strong className="text-sm text-foreground">Nenhum NFT encontrado</strong><span>Tente ajustar a busca ou remover alguns filtros.</span><button className="rounded border border-border bg-market-surface px-3 py-1.5 text-market-accent" type="button" onClick={() => { setSearchText(''); updateSearch({ q: '', category: 'Todas', network: 'Todas', minPrice: 0, maxPrice: 12.3, page: 1 }) }}>Limpar filtros</button></div>}
         </div>
       </section>
 
-      <footer className="footer"><span>© 2026 KURIO</span><span>Descubra. Colecione. Seja original.</span></footer>
+      <MarketplaceBelowSections />
       <AuthModal mode={authMode} onModeChange={setAuthMode} onClose={closeAuth} />
-      <Outlet />
     </main>
   )
 }
