@@ -79,7 +79,7 @@ export function AuthModal({ mode, onModeChange, onClose }: { mode: AuthMode; onM
 
   return (
       <Dialog open={Boolean(mode)} onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent showCloseButton={false} className="auth-dialog !block max-w-lg !min-h-96 !rounded-none !border-0 !border-b-4 !border-primary !bg-market-surface !px-16 !py-10 auth-modal-shadow outline-none max-tablet:!min-h-0 max-tablet:!px-10 max-tablet:!py-8 max-small:!px-7 max-small:!py-7">
+      <DialogContent showCloseButton={false} className="auth-dialog block! max-w-lg min-h-96 rounded-none! border-0! border-b-4! border-primary! bg-market-surface! px-16! py-10! auth-modal-shadow outline-none max-tablet:min-h-0! max-tablet:px-10! max-tablet:py-8! max-small:px-7! max-small:py-7!">
         <DialogTitle className="sr-only">Entrar ou criar conta na Kurio</DialogTitle>
         <DialogDescription className="sr-only">Acesse sua conta de colecionador ou crie um novo perfil.</DialogDescription>
         <DialogClose className="absolute right-2 top-2 grid size-8 place-items-center border-0 bg-transparent p-0 text-primary" aria-label="Fechar cadastro"><X size={18} /></DialogClose>
