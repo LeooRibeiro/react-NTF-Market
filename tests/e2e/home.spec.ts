@@ -6,7 +6,7 @@ test('cria conta pela API simulada na tela de cadastro', async ({ page }) => {
 
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
-  await expect(page.getByRole('article')).toHaveCount(9)
+  await expect(page.locator('.nft-grid article')).toHaveCount(9)
   await page.screenshot({ path: 'test-results/home-register.png', fullPage: true })
   await page.getByLabel('Nome de usuário').fill('Aline Teste')
   await page.getByLabel('E-mail').fill(`aline-${Date.now()}@example.test`)
@@ -17,9 +17,9 @@ test('cria conta pela API simulada na tela de cadastro', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Continuar explorando' }).click()
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole('button', { name: /Aline Teste/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Perfil', exact: true })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('button', { name: /Aline Teste/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Perfil', exact: true })).toBeVisible()
 })
 
 test('combina categoria e busca e mantém os filtros na URL', async ({ page }) => {
@@ -30,21 +30,21 @@ test('combina categoria e busca e mantém os filtros na URL', async ({ page }) =
   await expect(page.getByText('Página 1 de 4')).toBeVisible()
   await page.getByRole('button', { name: 'Ir para página 4' }).click()
   await expect(page).toHaveURL(/page=4/)
-  await expect(page.getByRole('article')).toHaveCount(9)
+  await expect(page.locator('.nft-grid article')).toHaveCount(9)
   await page.getByRole('button', { name: 'Ir para página 1' }).click()
   await page.getByRole('button', { name: /Arte digital/ }).first().click()
   await expect(page).toHaveURL(/category=Arte(?:%20|\+)digital/)
-  await expect(page.getByRole('article')).toHaveCount(9)
+  await expect(page.locator('.nft-grid article')).toHaveCount(9)
 
   await page.getByRole('textbox', { name: 'Buscar NFTs' }).fill('Cosmic')
   await expect(page).toHaveURL(/q=Cosmic/)
-  await expect(page.getByRole('article')).toHaveCount(3)
-  await expect(page.getByRole('article').first()).toContainText('Cosmic Bloom #118')
+  await expect(page.locator('.nft-grid article')).toHaveCount(3)
+  await expect(page.locator('.nft-grid article').first()).toContainText('Cosmic Bloom #118')
 
   await page.reload()
   await page.getByRole('button', { name: 'Fechar cadastro' }).click()
   await expect(page.getByRole('textbox', { name: 'Buscar NFTs' })).toHaveValue('Cosmic')
-  await expect(page.getByRole('article')).toHaveCount(3)
+  await expect(page.locator('.nft-grid article')).toHaveCount(3)
 })
 
 test('faz login com uma conta fictícia e mantém a sessão após refresh', async ({ page }) => {
@@ -56,9 +56,9 @@ test('faz login com uma conta fictícia e mantém a sessão após refresh', asyn
   await page.getByRole('button', { name: 'Entrar', exact: true }).last().click()
   await expect(page.getByRole('status')).toContainText('Bem-vindo de volta, Demo Kurio')
   await page.getByRole('button', { name: 'Continuar explorando' }).click()
-  await expect(page.getByRole('button', { name: /Demo Kurio/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Perfil', exact: true })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('button', { name: /Demo Kurio/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Perfil', exact: true })).toBeVisible()
 })
 
 test('entra com uma conta Google simulada e mantém a sessão após refresh', async ({ page }) => {
@@ -66,9 +66,9 @@ test('entra com uma conta Google simulada e mantém a sessão após refresh', as
   await page.getByRole('button', { name: 'Continuar com Google' }).click()
   await expect(page.getByRole('status')).toContainText('Bem-vindo, Google Kurio')
   await page.getByRole('button', { name: 'Continuar explorando' }).click()
-  await expect(page.getByRole('button', { name: /Google Kurio/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Perfil', exact: true })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('button', { name: /Google Kurio/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Perfil', exact: true })).toBeVisible()
 })
 
 test('abre filtros acessíveis no mobile sem causar overflow horizontal', async ({ page }) => {
@@ -82,8 +82,51 @@ test('abre filtros acessíveis no mobile sem causar overflow horizontal', async 
   await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible()
   await page.getByRole('button', { name: /Arte digital/ }).last().click()
   await expect(page).toHaveURL(/category=Arte(?:%20|\+)digital/)
-  await expect(page.getByRole('article')).toHaveCount(9)
+  await expect(page.locator('.nft-grid article')).toHaveCount(9)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+})
+
+test('mantém conteúdo e filtros utilizáveis no viewport tablet de 768px', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Fechar cadastro' }).click()
+  await expect(page.getByRole('textbox', { name: 'Buscar NFTs' })).toBeVisible()
+  await expect(page.locator('.nft-grid article').first()).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(768)
+})
+
+test('preserva a resposta mais recente quando consultas do catálogo chegam fora de ordem', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Fechar cadastro' }).click()
+  await page.evaluate(() => {
+    const w = window as unknown as { __kurioConfigureNetwork?: (scenario: { variableLatency: boolean; latencySequence: number[] }) => void }
+    w.__kurioConfigureNetwork?.({ variableLatency: true, latencySequence: [800, 35, 140] })
+  })
+
+  const search = page.getByRole('textbox', { name: 'Buscar NFTs' })
+  await search.fill('Cosmic')
+  await expect(page).toHaveURL(/q=Cosmic/)
+  await page.waitForTimeout(300)
+  await search.fill('Neon Vessel')
+  await expect(page).toHaveURL(/q=Neon(?:%20|\+)Vessel/)
+  await expect(page.locator('.nft-grid article').first()).toContainText('Neon Vessel #552')
+  await page.evaluate(() => (window as unknown as { __kurioResetNetwork?: () => void }).__kurioResetNetwork?.())
+})
+
+test('mantém foco dentro do diálogo de cadastro e associa erro de validação', async ({ page }) => {
+  await page.goto('/')
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(page.getByLabel('Nome de usuário')).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true)
+
+  await page.getByLabel('Nome de usuário').fill('Teste Acessível')
+  await page.getByLabel('E-mail').fill(`validacao-${Date.now()}@example.test`)
+  await page.getByLabel('Senha', { exact: true }).fill('KurioPass123')
+  await page.getByLabel('Confirmar senha').fill('SenhaDiferente')
+  await page.getByRole('button', { name: 'Criar conta', exact: true }).last().click()
+  await expect(page.getByRole('alert')).toContainText('As senhas não coincidem.')
 })
 
 test('abre o detalhe por URL direta, limita quantidade e adiciona ao carrinho', async ({ page }) => {

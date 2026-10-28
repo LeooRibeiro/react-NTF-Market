@@ -6,6 +6,9 @@ import type { OrderSnapshot } from '../orders/orders-api'
 import { addPriceNotice } from './price-notices'
 
 export function updateNftInCache(queryClient: QueryClient, payload: NftUpdatedPayload) {
+  const cartBeforeUpdate = queryClient.getQueryData<Cart>(['cart'])
+  const itemIsInCart = cartBeforeUpdate?.items.some((line) => line.nftId === payload.id) ?? false
+
   queryClient.setQueryData<Nft>(['nft', payload.id], (current) => {
     if (!current) return current
     return {
@@ -31,25 +34,17 @@ export function updateNftInCache(queryClient: QueryClient, payload: NftUpdatedPa
     }
   })
 
-  try {
-    const storedCart = localStorage.getItem('kurio-cart-v1')
-    const cartLines = storedCart ? JSON.parse(storedCart) as Array<{ nftId: string }> : []
-    const itemIsInCart = cartLines.some((line) => line.nftId === payload.id)
-
-    if (itemIsInCart) {
-      addPriceNotice({
-        nftId: payload.id,
-        nftName: payload.id.replace(/-/g, ' ').toUpperCase(),
-        oldPrice: payload.previousPrice || '',
-        newPrice: payload.price,
-        availableChanged: payload.available !== undefined,
-        available: payload.available,
-        timestamp: Date.now(),
-      })
-      void queryClient.invalidateQueries({ queryKey: ['cart-quote'] })
-    }
-  } catch {
-    // Ignora dados inválidos no armazenamento local.
+  if (itemIsInCart) {
+    addPriceNotice({
+      nftId: payload.id,
+      nftName: cartBeforeUpdate?.items.find((line) => line.nftId === payload.id)?.nft.name ?? payload.id,
+      oldPrice: payload.previousPrice || '',
+      newPrice: payload.price,
+      availableChanged: payload.available !== undefined,
+      available: payload.available,
+      timestamp: Date.now(),
+    })
+    void queryClient.invalidateQueries({ queryKey: ['cart-quote'] })
   }
 
   queryClient.setQueryData<Cart>(['cart'], (current) => {

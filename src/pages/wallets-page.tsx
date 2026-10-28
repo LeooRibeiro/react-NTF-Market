@@ -17,7 +17,7 @@ const catalogSearch = { q: '', category: 'Todas', sort: 'recent' as const, page:
 export function WalletsPage() {
   const queryClient = useQueryClient()
   const session = useQuery({ queryKey: ['session'], queryFn: getSession })
-  const walletsQuery = useQuery({ queryKey: ['wallets'], queryFn: getWallets })
+  const walletsQuery = useQuery({ queryKey: ['wallets'], queryFn: getWallets, enabled: Boolean(session.data) })
 
   // Estado do formulário de nova carteira
   const [name, setName] = useState('')
@@ -53,6 +53,10 @@ export function WalletsPage() {
       void queryClient.invalidateQueries({ queryKey: ['wallets'] })
       setSuccessMsg('Carteira principal atualizada!')
       setErrorMsg('')
+    },
+    onError: (err) => {
+      setErrorMsg(isAxiosError<{ message?: string }>(err) ? err.response?.data?.message ?? 'Não foi possível atualizar a carteira.' : 'Erro inesperado.')
+      setSuccessMsg('')
     },
   })
 
@@ -201,9 +205,9 @@ export function WalletsPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs text-market-ink-muted">Rede Blockchain</label>
+              <span id="wallet-network-label" className="mb-1 block text-xs text-market-ink-muted">Rede Blockchain</span>
               <Select value={network} onValueChange={setNetwork}>
-                <SelectTrigger className="h-9 border-border bg-market-deep text-xs">
+                <SelectTrigger aria-labelledby="wallet-network-label" className="h-9 border-border bg-market-deep text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="border-border bg-market-surface text-foreground">

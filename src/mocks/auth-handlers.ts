@@ -1,15 +1,15 @@
 import { delay, http, HttpResponse } from 'msw'
-import { accountsStorageKey, sessionStorageKey, readAccounts, hashPassword } from './mock-data'
+import { accountsStorageKey, sessionStorageKey, readAccounts, hashPassword, getMockSession, establishMockSession } from './mock-data'
 export const authHandlers = [
 // Auth & Session
   http.get('/api/auth/session', async () => {
     try {
-      const user = JSON.parse(localStorage.getItem(sessionStorageKey) ?? 'null') as { id: string; username: string; email: string } | null
-      if (user) return HttpResponse.json(user)
+      const user = getMockSession()
+      if (user) return HttpResponse.json({ id: user.id, username: user.username, email: user.email })
     } catch {
       localStorage.removeItem(sessionStorageKey)
     }
-    return HttpResponse.json({ message: 'Sessão inválida.' }, { status: 401 })
+    return HttpResponse.json(null)
   }),
 
   http.post('/api/auth/login', async ({ request }) => {
@@ -25,9 +25,9 @@ export const authHandlers = [
       return HttpResponse.json({ message: 'E-mail ou senha incorretos.' }, { status: 401 })
     }
     const user = demoMatch
-      ? { id: 'collector-demo', username: 'Usuário Teste', email }
+      ? { id: 'collector-demo', username: 'Demo Kurio', email }
       : { id: account!.id, username: account!.username, email: account!.email }
-    localStorage.setItem(sessionStorageKey, JSON.stringify(user))
+    establishMockSession(user)
     return HttpResponse.json(user)
   }),
 
@@ -35,14 +35,14 @@ export const authHandlers = [
     await delay(200)
     const body = await request.json() as { provider?: string }
     const socialUsers = {
-      google: { id: 'collector-demo', username: 'Usuário Teste', email: 'demo@kurio.art' },
-      facebook: { id: 'collector-facebook', username: 'Usuário Teste do Facebook', email: 'facebook@kurio.art' },
+      google: { id: 'collector-google', username: 'Google Kurio', email: 'google@kurio.art' },
+      facebook: { id: 'collector-facebook', username: 'Facebook Kurio', email: 'facebook@kurio.art' },
     }
     if (body.provider !== 'google' && body.provider !== 'facebook') {
       return HttpResponse.json({ message: 'Provedor de login inválido.' }, { status: 400 })
     }
     const user = socialUsers[body.provider]
-    localStorage.setItem(sessionStorageKey, JSON.stringify(user))
+    establishMockSession(user)
     return HttpResponse.json(user)
   }),
 
@@ -65,7 +65,7 @@ export const authHandlers = [
     const user = { id: `collector-${accounts.length + 1}`, username: body.username.trim(), email }
     accounts.push({ ...user, passwordHash: await hashPassword(body.password) })
     localStorage.setItem(accountsStorageKey, JSON.stringify(accounts))
-    localStorage.setItem(sessionStorageKey, JSON.stringify(user))
+    establishMockSession(user)
     return HttpResponse.json(user, { status: 201 })
   }),
 ]

@@ -14,7 +14,7 @@ import { ProfileAvatarCard } from '../components/profile-avatar-card'
 const avatarOptions = [
   '/assets/emerald-ape.png',
   '/assets/hero-vessel.png',
-  '/assets/cosmic-bloom.png',
+  '/assets/golden-beat.png',
   '/assets/golden-beat.png',
   '/assets/sage-nomad.png',
   '/assets/violet-nomad.png',
@@ -255,7 +255,7 @@ export function ProfilePage() {
               </p>
             )}
             {passwordError && (
-              <p className="mb-3 rounded border border-market-danger/40 bg-market-danger/10 p-2.5 text-xs text-market-danger" role="alert">
+              <p id="profile-password-error" className="mb-3 rounded border border-market-danger/40 bg-market-danger/10 p-2.5 text-xs text-market-danger" role="alert">
                 {passwordError}
               </p>
             )}
@@ -291,6 +291,8 @@ export function ProfilePage() {
                     placeholder="Nova senha segura"
                     required
                     minLength={8}
+                    aria-invalid={passwordError && (newPassword.length < 8 || (confirmPassword !== '' && newPassword !== confirmPassword)) ? true : undefined}
+                    aria-describedby={passwordError && (newPassword.length < 8 || (confirmPassword !== '' && newPassword !== confirmPassword)) ? 'profile-password-error' : undefined}
                     className="h-9 border-border bg-market-deep text-xs"
                   />
                 </div>
@@ -307,6 +309,8 @@ export function ProfilePage() {
                     placeholder="Repita a nova senha"
                     required
                     minLength={8}
+                    aria-invalid={passwordError && confirmPassword !== '' && newPassword !== confirmPassword ? true : undefined}
+                    aria-describedby={passwordError && confirmPassword !== '' && newPassword !== confirmPassword ? 'profile-password-error' : undefined}
                     className="h-9 border-border bg-market-deep text-xs"
                   />
                 </div>

@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input'
 import { CartCheckoutModal } from '../components/cart-checkout-modal'
 import { getCart, getCartQuote, multiplyEth, removeCartItem, updateCartItem } from '../features/cart/cart-api'
 import { usePriceNotices } from '../features/realtime/price-notices'
+import { getIdentityStorageKey } from '../lib/session-storage'
 
-const couponStorageKey = 'kurio-cart-coupon-v1'
+const couponStorageKey = () => getIdentityStorageKey('kurio-cart-coupon-v1')
 
 /** Formata o total decimal retornado pela API e mostra zero enquanto a cotação carrega. */
 function formatEth(value: string | undefined) {
@@ -24,7 +25,7 @@ export function CartPage() {
   const queryClient = useQueryClient()
   const { notices, clearNotices } = usePriceNotices()
   const [couponInput, setCouponInput] = useState('')
-  const [appliedCoupon, setAppliedCoupon] = useState(() => localStorage.getItem(couponStorageKey) ?? '')
+  const [appliedCoupon, setAppliedCoupon] = useState(() => localStorage.getItem(couponStorageKey()) ?? '')
   const cartQuery = useQuery({ queryKey: ['cart'], queryFn: getCart })
   const quoteQuery = useQuery({
     queryKey: ['cart-quote', cartQuery.data?.items.map(({ nftId, quantity }) => [nftId, quantity]), appliedCoupon],
@@ -42,13 +43,14 @@ export function CartPage() {
   const quoteError = quoteQuery.error && isAxiosError<{ message?: string }>(quoteQuery.error)
     ? quoteQuery.error.response?.data?.message ?? 'Não foi possível validar o cupom.'
     : ''
+  const cartMutationError = updateMutation.error || removeMutation.error
 
   /** Submete o código digitado e persiste a escolha para manter o cupom no checkout. */
   function applyCoupon(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const coupon = couponInput.trim()
     setAppliedCoupon(coupon)
-    localStorage.setItem(couponStorageKey, coupon)
+    localStorage.setItem(couponStorageKey(), coupon)
   }
 
   const cart = cartQuery.data
@@ -57,8 +59,8 @@ export function CartPage() {
 
   return (
     <CartCheckoutModal title="Carrinho">
-      <section className="cart-content px-0 pb-3 pt-4">
-        <div className="cart-heading mb-4 flex items-end justify-between gap-5 max-tablet:mb-5 max-tablet:items-start max-tablet:flex-col max-tablet:gap-3"><div><p className="eyebrow mb-1.5 text-xs text-market-accent">SUA COLEÇÃO</p><h1 className="m-0 text-2xl font-bold">Carrinho</h1><p className="mt-1.5 text-xs text-market-copy">{cartQuery.isLoading ? 'Carregando seus itens…' : `${cart?.totalItems ?? 0} itens selecionados`}</p></div><Link className="inline-flex items-center gap-1.5 text-xs text-market-accent" to="/" search={catalogSearch}><ArrowLeft size={14} /> Continuar explorando</Link></div>
+      <section id="cart-main" className="cart-content px-0 pb-3 pt-4">
+        <div className="cart-heading mb-4 flex items-end justify-between gap-5 max-tablet:mb-5 max-tablet:items-start max-tablet:flex-col max-tablet:gap-3"><div><p className="eyebrow mb-1.5 text-xs text-market-accent">SUA COLEÇÃO</p><h1 className="m-0 text-2xl font-bold">Carrinho</h1><p className="mt-1.5 text-xs text-market-copy" role="status" aria-live="polite" aria-atomic="true">{cartQuery.isLoading ? 'Carregando seus itens…' : `${cart?.totalItems ?? 0} itens selecionados`}</p></div><Link className="inline-flex items-center gap-1.5 text-xs text-market-accent" to="/" search={catalogSearch}><ArrowLeft size={14} /> Continuar explorando</Link></div>
 
         {notices.length > 0 && (
           <div className="mb-4 flex items-center justify-between gap-3 rounded border border-market-accent bg-market-surface p-3 text-xs text-foreground" role="alert">
@@ -73,6 +75,8 @@ export function CartPage() {
             </Button>
           </div>
         )}
+
+        {cartMutationError && <p className="mb-3 rounded border border-market-danger/40 bg-market-danger/10 p-2.5 text-xs text-market-danger" role="alert">Não foi possível atualizar o carrinho. Seus itens permanecem disponíveis; tente novamente.</p>}
 
         {cartQuery.isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4" aria-label="Carregando carrinho">
@@ -99,13 +103,13 @@ export function CartPage() {
               <h2 className="mb-3.5 mt-0 text-sm font-bold">Resumo do pedido</h2>
               <form className="coupon-form grid  gap-1.5" onSubmit={applyCoupon}>
                 <label className="sr-only" htmlFor="cart-coupon">Código do cupom</label>
-                <Input id="cart-coupon" className="coupon-input" value={couponInput} onChange={(event) => setCouponInput(event.target.value)} placeholder="Código do cupom" />
+                <Input id="cart-coupon" className="coupon-input" value={couponInput} onChange={(event) => setCouponInput(event.target.value)} placeholder="Código do cupom" aria-invalid={quoteError ? true : undefined} aria-describedby={quoteError ? 'cart-coupon-error' : undefined} />
                 <Button type="submit" className="coupon-submit" disabled={quoteQuery.isFetching}>Aplicar</Button>
               </form>
-              {quoteError && <p className="coupon-feedback error" role="alert">{quoteError}</p>}
-              {quote?.coupon && <p className="coupon-feedback" role="status">Cupom {quote.coupon} aplicado: 10% de desconto <button type="button" aria-label="Remover cupom" onClick={() => { setAppliedCoupon(''); setCouponInput(''); localStorage.removeItem(couponStorageKey) }}><X size={12} /></button></p>}
+              {quoteError && <p id="cart-coupon-error" className="coupon-feedback error" role="alert">{quoteError}</p>}
+              {quote?.coupon && <p className="coupon-feedback" role="status">Cupom {quote.coupon} aplicado: 10% de desconto <button type="button" aria-label="Remover cupom" onClick={() => { setAppliedCoupon(''); setCouponInput(''); localStorage.removeItem(couponStorageKey()) }}><X size={12} /></button></p>}
               <div className="summary-lines mt-5 grid gap-2.5 text-xs text-market-ink-muted"><div className="flex items-center justify-between gap-3"><span>Subtotal</span><strong className="text-xs font-medium text-foreground">{formatEth(quote?.subtotal)}</strong></div><div className="flex items-center justify-between gap-3"><span>Desconto</span><strong className="text-xs font-medium text-foreground">{quote?.discount && quote.discount !== '0.0' ? `− ${quote.discount} ETH` : '—'}</strong></div><div className="flex items-center justify-between gap-3"><span>Taxa de rede</span><strong className="text-xs font-medium text-foreground">{formatEth(quote?.networkFee)}</strong></div></div>
-              <div className="summary-total mt-4 flex items-center justify-between gap-3 border-t border-border pt-3.5 text-foreground"><span>Total estimado</span><strong className="text-base text-market-accent">{formatEth(quote?.total)}</strong></div>
+              <div className="summary-total mt-4 flex items-center justify-between gap-3 border-t border-border pt-3.5 text-foreground" aria-live="polite" aria-atomic="true"><span>Total estimado</span><strong className="text-base text-market-accent">{formatEth(quote?.total)}</strong></div>
               <p className="quote-note mb-3.5 mt-3 text-xs leading-7 text-market-dim">O valor final será confirmado com a cotação atual antes do pagamento.</p>
               {hasUnavailableItems && <p className="mb-3 text-xs text-market-danger" role="alert">Remova as edições esgotadas para continuar.</p>}
               {hasUnavailableItems

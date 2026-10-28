@@ -1,4 +1,4 @@
-import { io, Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 
 export type NftUpdatedPayload = {
   id: string
@@ -14,33 +14,43 @@ export type OrderUpdatedPayload = {
   status: 'pending' | 'confirmed' | 'declined'
   transactionId?: string | null
   version: number
+  accountId?: string
 }
 
-let socketInstance: Socket | null = null
+let socketPromise: Promise<Socket> | null = null
 
 /**
  * Retorna ou cria a instância singleton do socket.io-client configurada
  * com transporte websocket puro para compatibilidade com o binding do MSW.
  */
-export function getSocket(): Socket {
-  if (!socketInstance) {
-    const origin = typeof window !== 'undefined' && window.location.origin
-      ? window.location.origin
-      : 'http://localhost:4183'
+export function getSocket(): Promise<Socket> {
+  if (!socketPromise) {
+    // Load socket.io-client after MSW starts so its Engine.IO transport captures
+    // the intercepted WebSocket constructor instead of the native one.
+    socketPromise = import('socket.io-client').then(({ io }) => {
+      const origin = typeof window !== 'undefined' && window.location.origin
+        ? window.location.origin
+        : 'http://localhost:4183'
 
-    socketInstance = io(origin, {
-      transports: ['websocket'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 800,
+      const socket = io(origin, {
+        transports: ['websocket'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 800,
+      })
+
+      if (typeof window !== 'undefined') {
+        (window as unknown as Record<string, unknown>).__kurioSocket = socket
+      }
+      return socket
+    }).catch((error: unknown) => {
+      socketPromise = null
+      console.error('[socket.io] failed to initialize', error)
+      throw error
     })
-
-    if (typeof window !== 'undefined') {
-      (window as unknown as Record<string, unknown>).__kurioSocket = socketInstance
-    }
   }
-  return socketInstance
+  return socketPromise
 }
 
 // Rastreamento de versão para descartar duplicatas ou eventos obsoletos

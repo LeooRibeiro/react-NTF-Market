@@ -15,8 +15,18 @@ const queryClient = new QueryClient({
 async function startMocks() {
   if (import.meta.env.VITE_ENABLE_MOCKS === 'false' || !('serviceWorker' in navigator)) return
 
+  // Some Chromium-based desktop shells expose WebSocket through the Window
+  // prototype while reporting an own descriptor with value=undefined. The
+  // MSW interceptor checks the own descriptor first, so materialize the native
+  // constructor before enabling its WebSocket source.
+  const webSocketDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'WebSocket')
+  const nativeWebSocket = globalThis.WebSocket
+  if (webSocketDescriptor?.value == null && typeof nativeWebSocket === 'function') {
+    Reflect.deleteProperty(globalThis, 'WebSocket')
+  }
+
   const { worker } = await import('./mocks/browser')
-  await worker.start({ onUnhandledFrame: 'bypass' })
+  await worker.start()
 }
 
 async function bootstrap() {

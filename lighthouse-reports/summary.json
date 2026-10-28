@@ -1,0 +1,238 @@
+﻿{
+    "generatedAt":  "2026-10-27T19:17:41.7802541-03:00",
+    "lighthouse":  "13.6.0",
+    "node":  "v24.22.0",
+    "npm":  "11.19.1",
+    "browser":  "156.0.4314.42",
+    "browserPath":  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "os":  "Microsoft Windows 11 Pro",
+    "processor":  "AMD Ryzen 5 4600G with Radeon Graphics",
+    "config":  {
+                   "cliVersion":  "13.6.0",
+                   "baseUrl":  "http://127.0.0.1:4173",
+                   "runs":  3,
+                   "pages":  {
+                                 "home":  "/",
+                                 "detail":  "/nft/neon-vessel-552"
+                             },
+                   "profiles":  [
+                                    "mobile",
+                                    "desktop"
+                                ],
+                   "categories":  [
+                                      "performance",
+                                      "accessibility",
+                                      "best-practices",
+                                      "seo"
+                                  ],
+                   "metrics":  [
+                                   "largest-contentful-paint",
+                                   "cumulative-layout-shift",
+                                   "total-blocking-time"
+                               ],
+                   "targets":  {
+                                   "performance":  90,
+                                   "accessibility":  95,
+                                   "best-practices":  95,
+                                   "seo":  90
+                               },
+                   "chromeFlags":  "--headless=new --no-sandbox",
+                   "throttlingMethod":  "simulate"
+               },
+    "targetResults":  [
+                          {
+                              "page":  "home",
+                              "profile":  "mobile",
+                              "runs":  3,
+                              "performance":  96,
+                              "accessibility":  100,
+                              "best-practices":  96,
+                              "seo":  100,
+                              "largest-contentful-paint":  804.5,
+                              "cumulative-layout-shift":  0,
+                              "total-blocking-time":  218.6
+                          },
+                          {
+                              "page":  "home",
+                              "profile":  "desktop",
+                              "runs":  3,
+                              "performance":  100,
+                              "accessibility":  100,
+                              "best-practices":  96,
+                              "seo":  100,
+                              "largest-contentful-paint":  261.7,
+                              "cumulative-layout-shift":  0,
+                              "total-blocking-time":  5.5
+                          },
+                          {
+                              "page":  "detail",
+                              "profile":  "mobile",
+                              "runs":  3,
+                              "performance":  90,
+                              "accessibility":  100,
+                              "best-practices":  96,
+                              "seo":  100,
+                              "largest-contentful-paint":  3502,
+                              "cumulative-layout-shift":  0,
+                              "total-blocking-time":  95
+                          },
+                          {
+                              "page":  "detail",
+                              "profile":  "desktop",
+                              "runs":  3,
+                              "performance":  99,
+                              "accessibility":  100,
+                              "best-practices":  96,
+                              "seo":  100,
+                              "largest-contentful-paint":  850.7,
+                              "cumulative-layout-shift":  0,
+                              "total-blocking-time":  0
+                          }
+                      ],
+    "executions":  [
+                       {
+                           "page":  "home",
+                           "profile":  "mobile",
+                           "run":  1,
+                           "performance":  96.0,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  804.5485000000001,
+                           "cumulative-layout-shift":  0,
+                           "total-blocking-time":  212.36287500000003
+                       },
+                       {
+                           "page":  "home",
+                           "profile":  "mobile",
+                           "run":  2,
+                           "performance":  96.0,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  807.4655,
+                           "cumulative-layout-shift":  0,
+                           "total-blocking-time":  218.63362500000017
+                       },
+                       {
+                           "page":  "home",
+                           "profile":  "mobile",
+                           "run":  3,
+                           "performance":  95.0,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  803.9654,
+                           "cumulative-layout-shift":  0,
+                           "total-blocking-time":  247.00865
+                       },
+                       {
+                           "page":  "home",
+                           "profile":  "desktop",
+                           "run":  1,
+                           "performance":  100,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  261.68,
+                           "cumulative-layout-shift":  0.005925925925925926,
+                           "total-blocking-time":  4.5
+                       },
+                       {
+                           "page":  "home",
+                           "profile":  "desktop",
+                           "run":  2,
+                           "performance":  100,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  261.919,
+                           "cumulative-layout-shift":  0.005925925925925926,
+                           "total-blocking-time":  12.499999999999943
+                       },
+                       {
+                           "page":  "home",
+                           "profile":  "desktop",
+                           "run":  3,
+                           "performance":  100,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  258.9686,
+                           "cumulative-layout-shift":  0.005925925925925926,
+                           "total-blocking-time":  5.500000000000057
+                       },
+                       {
+                           "page":  "detail",
+                           "profile":  "mobile",
+                           "run":  1,
+                           "performance":  90.0,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  3525.585,
+                           "cumulative-layout-shift":  0,
+                           "total-blocking-time":  95.00000000000045
+                       },
+                       {
+                           "page":  "detail",
+                           "profile":  "mobile",
+                           "run":  2,
+                           "performance":  88.0,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  3501.9888,
+                           "cumulative-layout-shift":  0,
+                           "total-blocking-time":  208.5
+                       },
+                       {
+                           "page":  "detail",
+                           "profile":  "mobile",
+                           "run":  3,
+                           "performance":  91.0,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  3449.2289999999994,
+                           "cumulative-layout-shift":  0,
+                           "total-blocking-time":  87.5
+                       },
+                       {
+                           "page":  "detail",
+                           "profile":  "desktop",
+                           "run":  1,
+                           "performance":  99.0,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  850.6632500000001,
+                           "cumulative-layout-shift":  0.00599250936329588,
+                           "total-blocking-time":  0
+                       },
+                       {
+                           "page":  "detail",
+                           "profile":  "desktop",
+                           "run":  2,
+                           "performance":  100,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  800.39115,
+                           "cumulative-layout-shift":  0.00599250936329588,
+                           "total-blocking-time":  0
+                       },
+                       {
+                           "page":  "detail",
+                           "profile":  "desktop",
+                           "run":  3,
+                           "performance":  99.0,
+                           "accessibility":  100,
+                           "best-practices":  96.0,
+                           "seo":  100,
+                           "largest-contentful-paint":  910.4103,
+                           "cumulative-layout-shift":  0.00599250936329588,
+                           "total-blocking-time":  0
+                       }
+                   ]
+}

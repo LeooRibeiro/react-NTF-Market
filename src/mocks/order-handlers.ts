@@ -1,18 +1,22 @@
-import { delay, http, HttpResponse } from 'msw'
-import { cartStorageKey, idempotencyStorageKey, ordersStorageKey, sessionStorageKey, nfts, readCart, readWallets, toUnits, fromUnits } from './mock-data'
+import { http, HttpResponse } from 'msw'
+import { nfts, readCart, writeCart, readWallets, toUnits, fromUnits, getMockSession, getOrdersStorageKey, getIdempotencyStorageKey, getScopedStorageKey } from './mock-data'
 import { updateNftAvailability } from './socket-handlers'
+import { scenarioDelay, takeNetworkFailure } from './network-scenarios'
 export const orderHandlers = [
 // Orders
   http.get('/api/orders/:orderId', ({ params }) => {
-    if (!localStorage.getItem(sessionStorageKey)) return HttpResponse.json({ message: 'Sessão inválida.' }, { status: 401 })
-    const orders = JSON.parse(localStorage.getItem(ordersStorageKey) ?? '[]') as Array<Record<string, unknown>>
+    const session = getMockSession()
+    if (!session) return HttpResponse.json({ message: 'Sessão inválida.' }, { status: 401 })
+    const orders = JSON.parse(localStorage.getItem(getOrdersStorageKey(session.id)) ?? '[]') as Array<Record<string, unknown>>
     const order = orders.find((candidate) => candidate.id === params.orderId)
     return order ? HttpResponse.json(order) : HttpResponse.json({ message: 'Pedido não encontrado.' }, { status: 404 })
   }),
 
   http.post('/api/orders', async ({ request }) => {
-    await delay(280)
-    const session = localStorage.getItem(sessionStorageKey)
+    await scenarioDelay(request, 'POST /api/orders', 280)
+    const failure = takeNetworkFailure('POST /api/orders')
+    if (failure) return failure
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Entre na sua conta para continuar.' }, { status: 401 })
     const key = request.headers.get('Idempotency-Key')
     if (!key) return HttpResponse.json({ message: 'Chave de tentativa obrigatória.' }, { status: 400 })
@@ -20,8 +24,10 @@ export const orderHandlers = [
     if (body.scenario && !['confirmed', 'declined', 'pending', 'timeout'].includes(body.scenario)) {
       return HttpResponse.json({ message: 'Cenário de pagamento inválido.' }, { status: 400 })
     }
-    const keys = JSON.parse(localStorage.getItem(idempotencyStorageKey) ?? '{}') as Record<string, { id: string; body: string }>
-    const orders = JSON.parse(localStorage.getItem(ordersStorageKey) ?? '[]') as Array<Record<string, unknown>>
+    const keysKey = getIdempotencyStorageKey(session.id)
+    const ordersKey = getOrdersStorageKey(session.id)
+    const keys = JSON.parse(localStorage.getItem(keysKey) ?? '{}') as Record<string, { id: string; body: string }>
+    const orders = JSON.parse(localStorage.getItem(ordersKey) ?? '[]') as Array<Record<string, unknown>>
     const bodySnapshot = JSON.stringify(body)
     if (!body.walletConnected) {
       return HttpResponse.json({ message: 'Conecte sua carteira antes de enviar o pedido.' }, { status: 409 })
@@ -64,15 +70,15 @@ export const orderHandlers = [
     }
     orders.push(order)
     keys[key] = { id, body: bodySnapshot }
-    localStorage.setItem(ordersStorageKey, JSON.stringify(orders))
-    localStorage.setItem(idempotencyStorageKey, JSON.stringify(keys))
+    localStorage.setItem(ordersKey, JSON.stringify(orders))
+    localStorage.setItem(keysKey, JSON.stringify(keys))
     if (status === 'confirmed') {
       const bought = new Map(body.cartItems.map((line) => [line.nftId, line.quantity]))
-      localStorage.setItem(cartStorageKey, JSON.stringify(cart.flatMap((line) => {
+      writeCart(cart.flatMap((line) => {
         const remaining = line.quantity - (bought.get(line.nftId) ?? 0)
         return remaining > 0 ? [{ ...line, quantity: remaining }] : []
-      })))
-      localStorage.removeItem('kurio-cart-coupon-v1')
+      }))
+      localStorage.removeItem(getScopedStorageKey('kurio-cart-coupon-v1', session.id))
       for (const nftId of bought.keys()) updateNftAvailability(nftId, false)
     }
     if (body.scenario === 'timeout') return HttpResponse.error()
