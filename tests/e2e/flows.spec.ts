@@ -74,8 +74,8 @@ test('executa o fluxo de compra completa do catálogo ao recibo confirmado', asy
   // 6. Recibo confirmado exibido com sucesso
   await expect(page).toHaveURL(/\/orders\/order-/)
   await expect(page.getByRole('heading', { name: 'Seus NFTs agora estão na sua carteira' })).toBeVisible()
-  await expect(page.getByText('Transação simulada')).toBeVisible()
-  await expect(page.locator('.receipt-total')).toContainText('ETH')
+  await expect(page.getByRole('status')).toContainText('Compra confirmada na simulação.')
+  await expect(page.locator('.receipt-summary')).toContainText('ETH')
 })
 
 test('gerencia perfil do colecionador e alteração de senha', async ({ page }) => {

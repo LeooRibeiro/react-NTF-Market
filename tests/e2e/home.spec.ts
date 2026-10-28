@@ -90,7 +90,7 @@ test('mantém conteúdo e filtros utilizáveis no viewport tablet de 768px', asy
   await page.setViewportSize({ width: 768, height: 1024 })
   await page.goto('/')
   await page.getByRole('button', { name: 'Fechar cadastro' }).click()
-  await expect(page.getByRole('textbox', { name: 'Buscar NFTs' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Buscar coleções e NFTs' })).toBeVisible()
   await expect(page.locator('.nft-grid article').first()).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(768)
 })
