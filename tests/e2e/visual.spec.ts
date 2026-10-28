@@ -36,6 +36,9 @@ async function compareDesktopAndMobile(page: Page, name: string) {
   })
 
   await page.setViewportSize(mobile)
+  const dismiss = page.getByRole('button', { name: 'Fechar cadastro' })
+  if (await dismiss.isVisible().catch(() => false)) await dismiss.click()
+  await expect(page.locator('.auth-dialog')).toBeHidden()
   await expect(page).toHaveScreenshot(`${name}-mobile.png`, {
     animations: 'disabled',
     caret: 'hide',
