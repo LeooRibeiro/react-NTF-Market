@@ -68,7 +68,7 @@ test('pagamento recusado mantém o carrinho e timeout recupera o pedido pendente
   await page.getByLabel('Recusar pagamento').check()
   await page.getByRole('button', { name: 'Confirmar pedido' }).click()
   await expect(page).toHaveURL(/\/orders\/order-/)
-  await expect(page.getByRole('heading', { name: 'Pagamento recusado' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'O pagamento não foi concluído' })).toBeVisible()
   await page.goto('/cart')
   await expect(page.locator('.cart-item')).toHaveCount(1)
 
@@ -90,7 +90,7 @@ test('pagamento recusado mantém o carrinho e timeout recupera o pedido pendente
     return w.__kurioUpdateOrderStatus?.(id, 'confirmed', Date.now() + 10) ?? null
   }, orderId)
   expect(updated).not.toBeNull()
-  await expect(page.getByRole('heading', { name: 'Compra confirmada' })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('heading', { name: 'Seus NFTs agora estão na sua carteira' })).toBeVisible({ timeout: 10_000 })
 })
 
 test('mostra erro HTTP reproduzível do catálogo e permite tentar novamente', async ({ page }) => {
@@ -111,6 +111,7 @@ test('mostra erro HTTP reproduzível do catálogo e permite tentar novamente', a
 test('faz rollback de favorito após falha HTTP e permite nova tentativa', async ({ page }) => {
   await loginDemo(page)
   await page.goto('/nft/neon-vessel-552')
+  await expect(page.getByRole('button', { name: /Favoritar, adicionar aos favoritos/ })).toBeVisible()
   await page.evaluate(() => {
     const w = window as unknown as { __kurioQueueNetworkFailure?: (route: string, failure: { kind: 'http'; status: number }, count?: number) => void }
     w.__kurioQueueNetworkFailure?.('POST /api/favorites', { kind: 'http', status: 503 })
