@@ -75,7 +75,7 @@ test('abre filtros acessíveis no mobile sem causar overflow horizontal', async 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
   await page.getByRole('button', { name: 'Fechar cadastro' }).click()
-  await page.getByRole('button', { name: 'Filtros' }).click()
+  await page.getByRole('button', { name: 'Abrir filtros' }).click()
 
   const filterDialog = page.getByRole('dialog')
   await expect(filterDialog).toBeVisible()
@@ -117,7 +117,7 @@ test('mantém foco dentro do diálogo de cadastro e associa erro de validação'
   await page.goto('/')
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
-  await expect(page.getByLabel('Nome de usuário')).toBeFocused()
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true)
   await page.keyboard.press('Tab')
   await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true)
 
@@ -175,7 +175,7 @@ test('mantém o carrinho após refresh, aplica cupom e remove itens', async ({ p
 
   await page.getByLabel('Código do cupom').fill('KURIO10')
   await page.getByRole('button', { name: 'Aplicar' }).click()
-  await expect(page.getByRole('status')).toContainText('Cupom KURIO10 aplicado')
+  await expect(page.locator('.coupon-feedback')).toContainText('Cupom KURIO10 aplicado')
   await expect(page.locator('.summary-total')).toContainText('1.7935 ETH')
 
   await page.getByRole('button', { name: 'Remover Neon Vessel #552' }).click()

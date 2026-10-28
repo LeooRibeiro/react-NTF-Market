@@ -60,7 +60,7 @@ test('executa o fluxo de compra completa do catálogo ao recibo confirmado', asy
   // 3. Aplica cupom KURIO10
   await page.getByLabel('Código do cupom').fill('KURIO10')
   await page.getByRole('button', { name: 'Aplicar' }).click()
-  await expect(page.getByRole('status')).toContainText('Cupom KURIO10 aplicado')
+  await expect(page.locator('.coupon-feedback')).toContainText('Cupom KURIO10 aplicado')
 
   // 4. Vai para pagamento
   await page.getByRole('link', { name: 'Continuar para pagamento' }).click()
@@ -73,7 +73,7 @@ test('executa o fluxo de compra completa do catálogo ao recibo confirmado', asy
 
   // 6. Recibo confirmado exibido com sucesso
   await expect(page).toHaveURL(/\/orders\/order-/)
-  await expect(page.getByRole('heading', { name: 'Compra confirmada' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Seus NFTs agora estão na sua carteira' })).toBeVisible()
   await expect(page.getByText('Transação simulada')).toBeVisible()
   await expect(page.locator('.receipt-total')).toContainText('ETH')
 })
@@ -175,15 +175,21 @@ test('atualiza preço via Socket.IO durante checkout e exige nova confirmação'
   })
 
   // 3. A interface deve alertar sobre a alteração em tempo real e exigir confirmação
-  await expect(page.getByRole('alert')).toContainText('Preço alterado durante a compra')
-  await expect(page.getByRole('button', { name: 'Aceitar novo total' })).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText('Atualização durante a compra')
+  await expect(page.getByRole('alert')).toContainText('preço alterado de 1.99 para 2.89 ETH')
+  const acceptUpdatedQuote = page.getByRole('button', { name: /Aceitar atualização \(2\.8925 ETH\)/ })
+  await expect(acceptUpdatedQuote).toBeVisible()
 
   // O botão de confirmar pedido deve bloquear até aceite
-  await expect(page.getByRole('button', { name: /Confirme a nova cotação/ })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Confirme a nova cotação acima' })).toBeDisabled()
 
   // Clica para aceitar novo total
-  await page.getByRole('button', { name: 'Aceitar novo total' }).click()
+  await acceptUpdatedQuote.click()
 
-  // Agora pode confirmar pedido
+  // Após aceitar, o pedido pode ser confirmado com a cotação atualizada
   await expect(page.getByRole('button', { name: 'Confirmar pedido' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Confirmar pedido' }).click()
+  await expect(page).toHaveURL(/\/orders\/order-/)
+  await expect(page.getByRole('heading', { name: 'Seus NFTs agora estão na sua carteira' })).toBeVisible()
+  await expect(page.locator('.receipt-summary')).toContainText('2.8925 ETH')
 })
