@@ -1,17 +1,22 @@
-import { delay, http, HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw'
 import type { CatalogResult, SortOption } from '../features/catalog/catalog-api'
 import { nfts } from './mock-data'
+import { scenarioDelay, shouldReturnEmptyCatalog, takeNetworkFailure } from './network-scenarios'
 export const catalogHandlers = [
 // NFTs
-  http.get('/api/nfts/:nftId', async ({ params }) => {
-    await delay(150)
+  http.get('/api/nfts/:nftId', async ({ params, request }) => {
+    await scenarioDelay(request, 'GET /api/nfts/:nftId', 150)
+    const failure = takeNetworkFailure('GET /api/nfts/:nftId')
+    if (failure) return failure
     const nft = nfts.find((candidate) => candidate.id === params.nftId)
     if (!nft) return HttpResponse.json({ message: 'NFT não encontrado.' }, { status: 404 })
     return HttpResponse.json(nft)
   }),
 
   http.get('/api/nfts', async ({ request }) => {
-    await delay(220)
+    await scenarioDelay(request, 'GET /api/nfts', 220)
+    const failure = takeNetworkFailure('GET /api/nfts')
+    if (failure) return failure
     const params = new URL(request.url).searchParams
     const q = (params.get('q') ?? '').trim().toLocaleLowerCase('pt-BR')
     const category = params.get('category') ?? 'Todas'
@@ -34,6 +39,7 @@ export const catalogHandlers = [
     else if (sort === 'price-desc') filtered = filtered.sort((a, b) => Number(b.price) - Number(a.price))
     else filtered = filtered.sort((a, b) => b.listedAt - a.listedAt)
 
+    if (shouldReturnEmptyCatalog()) filtered = []
     const start = (page - 1) * pageSize
     const result: CatalogResult = { items: filtered.slice(start, start + pageSize), total: filtered.length, page, pageSize }
     return HttpResponse.json(result)

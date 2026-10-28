@@ -1,7 +1,8 @@
 import { ws } from 'msw'
 import { toSocketIo } from '@mswjs/socket.io-binding'
 import { resetEventTracker } from '../lib/socket'
-import { cartStorageKey, favoritesStorageKey, idempotencyStorageKey, initialNfts, nfts, ordersStorageKey, profilesStorageKey, walletsStorageKey } from './mock-data'
+import { initialNfts, nfts, getMockSession, getOrdersStorageKey, getScopedStorageKey, readCart, writeCart } from './mock-data'
+import { resetNetworkScenarios } from './network-scenarios'
 // -------------------------------------------------------------
 // Realtime com Socket.IO e Mock Service Worker
 // -------------------------------------------------------------
@@ -66,7 +67,10 @@ export function updateNftAvailability(nftId: string, available: boolean, version
  * Atualiza o estado de um pedido e emite `order.updated` via Socket.IO.
  */
 export function updateOrderStatus(orderId: string, status: 'confirmed' | 'declined' | 'pending', version = Date.now()) {
-  const orders = JSON.parse(localStorage.getItem(ordersStorageKey) ?? '[]') as Array<Record<string, unknown>>
+  const userId = getMockSession()?.id
+  if (!userId) return null
+  const orderKey = getOrdersStorageKey(userId)
+  const orders = JSON.parse(localStorage.getItem(orderKey) ?? '[]') as Array<Record<string, unknown>>
   const order = orders.find((candidate) => candidate.id === orderId)
   if (!order) return null
   if (order.status === 'confirmed' || order.status === 'declined') return null
@@ -78,25 +82,26 @@ export function updateOrderStatus(orderId: string, status: 'confirmed' | 'declin
   if (status === 'confirmed') {
     const orderItems = order.items as Array<{ nft: { id: string }; quantity: number }> | undefined
     const purchasedQuantities = new Map((orderItems ?? []).map((item) => [item.nft.id, item.quantity]))
-    const cart = JSON.parse(localStorage.getItem(cartStorageKey) ?? '[]') as Array<{ nftId: string; quantity: number }>
+    const cart = readCart()
 
-    localStorage.setItem(cartStorageKey, JSON.stringify(cart.flatMap((item) => {
+    writeCart(cart.flatMap((item) => {
       const remaining = item.quantity - (purchasedQuantities.get(item.nftId) ?? 0)
       return remaining > 0 ? [{ ...item, quantity: remaining }] : []
-    })))
-    localStorage.removeItem('kurio-cart-coupon-v1')
+    }))
+    localStorage.removeItem(getScopedStorageKey('kurio-cart-coupon-v1', userId))
 
     for (const nftId of purchasedQuantities.keys()) {
       updateNftAvailability(nftId, false, version)
     }
   }
 
-  localStorage.setItem(ordersStorageKey, JSON.stringify(orders))
+  localStorage.setItem(orderKey, JSON.stringify(orders))
   const payload = {
     id: orderId,
     status,
     transactionId: (order.transactionId as string) ?? null,
     version,
+    accountId: userId,
   }
   broadcastSocketEvent('order.updated', payload)
   return payload
@@ -107,13 +112,12 @@ export function updateOrderStatus(orderId: string, status: 'confirmed' | 'declin
  */
 export function resetMockDatabase() {
   resetEventTracker()
-  localStorage.removeItem(cartStorageKey)
-  localStorage.removeItem('kurio-cart-coupon-v1')
-  localStorage.removeItem(ordersStorageKey)
-  localStorage.removeItem(idempotencyStorageKey)
-  localStorage.removeItem(favoritesStorageKey)
-  localStorage.removeItem(walletsStorageKey)
-  localStorage.removeItem(profilesStorageKey)
+  resetNetworkScenarios()
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index)
+    if (key?.startsWith('kurio-')) localStorage.removeItem(key)
+  }
+  sessionStorage.clear()
 
   // Restaura catálogo com preços e disponibilidades originais
   nfts.length = 0
@@ -131,8 +135,11 @@ if (typeof window !== 'undefined') {
   w.__kurioActiveSocketClients = activeSocketClients
 }
 
-// Handler de WebSocket interceptando conexões do socket.io-client
-const socketLink = ws.link('*')
+// Handler de WebSocket interceptando conexões do socket.io-client via MSW.
+const socketUrl = typeof window !== 'undefined'
+  ? new URL('/', window.location.origin).href.replace(/^http/, 'ws')
+  : '*'
+const socketLink = ws.link(socketUrl)
 export const socketIoHandler = socketLink.addEventListener('connection', (connection) => {
   const duplex = toSocketIo(connection)
   const client = duplex.client as unknown as MockSocketClient

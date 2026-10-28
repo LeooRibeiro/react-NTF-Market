@@ -4,7 +4,7 @@ Implemente o **NFT Marketplace** em React e TypeScript, seguindo o [layout no Fi
 
 O desafio avalia fidelidade visual, qualidade das interações, integração com APIs, gerenciamento de estado assíncrono, tempo real, acessibilidade e performance.
 
-> Este README mantém a especificação original do desafio como referência. A seção [Auditoria preliminar da implementação](#auditoria-preliminar-da-implementação) separa o que existe no código das pendências; os requisitos da especificação não devem ser interpretados como funcionalidades já concluídas.
+> Este README mantém a especificação original do desafio como referência. A seção [Estado da implementação](#estado-da-implementação) registra as entregas confirmadas e as pendências; os requisitos da especificação não devem ser interpretados como funcionalidades já concluídas.
 
 ## Execução local
 
@@ -39,10 +39,10 @@ Não há variável obrigatória para executar o projeto. `VITE_ENABLE_MOCKS` é 
 | Verificação de tipos | `npm run typecheck` | Executa `tsc -b --pretty`. |
 | Build de produção | `npm run build` | Executa typecheck do build e `vite build`. |
 | Preview local do build | `npm run preview -- --host 127.0.0.1 --port 4173` | Execute após o build. |
+| Lint | `npm run lint` | ESLint flat config, TypeScript e regras de hooks React. |
 | Testes E2E | `npm run test:e2e` | Playwright, Chromium pelo canal Edge; requer navegador instalado. |
 | Instalar navegador E2E | `npx playwright install msedge` | Baixa o navegador usado pela configuração atual. |
-
-Não existe script de lint configurado no `package.json`.
+| Auditoria Lighthouse | `npm run audit:lighthouse` | Roda 12 auditorias e grava HTML, JSON e medianas em `lighthouse-reports/`. |
 
 ### Cenários manuais com os mocks
 
@@ -56,7 +56,20 @@ __kurioUpdateNftAvailability('neon-vessel-552', false)
 __kurioUpdateOrderStatus('ID_DO_PEDIDO', 'confirmed')
 ```
 
-Os helpers estão disponíveis quando o worker MSW inicia. `__kurioResetData()` limpa carrinho, cupom, pedidos, favoritos, carteiras e perfis e restaura o catálogo; hoje o reset mantém a sessão e contas cadastradas no navegador.
+Os helpers estão disponíveis quando o worker MSW inicia. `__kurioResetData()` limpa sessão, contas cadastradas, carrinhos, cupons, pedidos, favoritos, carteiras e perfis; restaura o catálogo e zera os cenários de rede. O usuário demo continua disponível como fixture fixa.
+
+Para reproduzir condições de rede no console:
+
+```js
+__kurioConfigureNetwork({ variableLatency: true })
+__kurioConfigureNetwork({ latencySequence: [800, 35, 140] })
+__kurioQueueNetworkFailure('GET /api/nfts', { kind: 'http', status: 503 }, 2)
+__kurioQueueNetworkFailure('POST /api/orders', { kind: 'network' })
+__kurioConfigureNetwork({ emptyCatalog: true })
+__kurioResetNetwork()
+```
+
+Latência variável alterna 280, 35 e 140 ms para permitir respostas fora de ordem. `latencySequence` aceita outra sequência por rota, por exemplo `[800, 35, 140]`. Também é possível usar `?__delay=1200` para definir o atraso de uma requisição. Os helpers `__kurioExpireSession()` e `__kurioResetNetwork()` controlam a sessão e os cenários.
 
 ### Auditoria Lighthouse
 
@@ -67,18 +80,13 @@ npm run build
 npm run preview -- --host 127.0.0.1 --port 4173
 ```
 
-Em outro terminal PowerShell, crie a pasta de relatórios e execute uma medição mobile e uma desktop para cada página. Repita cada comando três vezes, alterando o sufixo `run-1` para `run-2` e `run-3`:
+Em outro terminal PowerShell, execute a matriz mobile/desktop de início e detalhe, três vezes cada:
 
 ```powershell
-New-Item -ItemType Directory -Force lighthouse-reports
-npx --yes lighthouse --version
-npx --yes lighthouse http://127.0.0.1:4173/ --output html --output-path=./lighthouse-reports/home-mobile-run-1.html
-npx --yes lighthouse http://127.0.0.1:4173/ --preset=desktop --output html --output-path=./lighthouse-reports/home-desktop-run-1.html
-npx --yes lighthouse http://127.0.0.1:4173/nft/neon-vessel-552 --output html --output-path=./lighthouse-reports/detail-mobile-run-1.html
-npx --yes lighthouse http://127.0.0.1:4173/nft/neon-vessel-552 --preset=desktop --output html --output-path=./lighthouse-reports/detail-desktop-run-1.html
+powershell -ExecutionPolicy Bypass -File scripts/audit-lighthouse.ps1
 ```
 
-O Lighthouse usa o perfil mobile por padrão; `--preset=desktop` seleciona desktop. Registre a versão exibida por `lighthouse --version`, as versões do Node.js/npm e do navegador, as condições da máquina e a mediana das três execuções por categoria e perfil. Os relatórios e as pontuações ainda precisam ser gerados; nenhum resultado é presumido neste README. Para uma auditoria reproduzível ao longo do tempo, fixe a versão do CLI antes de versionar os relatórios.
+O script usa a versão fixa em `lighthouse-audit.json`, escolhe Edge/Chrome instalado ou aceita `-ChromePath`, e grava os 24 relatórios HTML/JSON e o resumo com medianas em `lighthouse-reports/`. Consulte [os resultados e as limitações observadas](./lighthouse-reports/README.md). Os números representam este ambiente e o cenário padrão dos mocks.
 
 Consulte [ARCHITECTURE.md](./ARCHITECTURE.md) para contratos REST, sessão, persistência, cache, eventos Socket.IO e limitações conhecidas.
 
@@ -268,6 +276,15 @@ São obrigatórios:
 
 Use os assets do arquivo quando disponíveis e mantenha imagens e fontes necessárias acessíveis à execução local. Documente qualquer substituição de asset ou ajuste de acessibilidade em relação ao layout.
 
+### Ajustes implementados de responsividade e acessibilidade
+
+- Os layouts de catálogo, detalhe, carrinho e checkout passam a uma coluna abaixo de 781 px; a grade de NFTs reduz para duas colunas e drawers mantêm rolagem própria. A largura mínima global é 320 px para suportar celulares estreitos e viewport reduzida por zoom. Modais limitam a altura à janela e permitem rolagem interna.
+- No início mobile, a busca e o filtro ficam no topo; o destaque usa composição lado a lado, categorias rolam horizontalmente, NFTs permanecem em duas colunas e uma barra inferior leva a início, exploração, carrinho e perfil. Carrinho e checkout usam drawer de tela cheia em celulares.
+- A confirmação foi redesenhada como recibo central com resumo da transação, data, total, carteira, itens, edições e taxas; no mobile os metadados viram grade 2×2 e cada NFT vira uma linha compacta.
+- O foco visível usa contorno de alto contraste; campos de senha e newsletter preservam indicador de foco apesar do estilo visual customizado. Os diálogos e drawers usam o gerenciamento de foco e a tecla Escape do Radix.
+- Filtros e avatares expõem seleção por `aria-pressed`; abas do detalhe aceitam setas, Home/End e mantêm um único ponto de tabulação. Mensagens de erro são ligadas aos campos relevantes, e os resultados de mutations e atualizações de cotação são anunciados como status/alerta.
+- Imagens e fontes permanecem locais. Não houve substituição de assets. O ajuste visual foi limitar a largura mínima a 320 px, tornar o conteúdo de modais rolável e adicionar contorno/indicadores de seleção; o desenho e a paleta do Figma foram preservados.
+
 ## 9. Testes com Playwright
 
 Entregue testes E2E executáveis com os mocks, cobrindo:
@@ -339,25 +356,19 @@ Disponibilize comandos para desenvolvimento com mocks, build, preview, verifica�
 
 A entrega deve executar a partir de um checkout limpo, sem depender de serviços privados ou do backend de produção.
 
-## Auditoria preliminar da implementação
+## Estado da implementação
 
-Esta é uma revisão estática do código e da configuração disponíveis no repositório. Não representa execução de testes, typecheck, Lighthouse ou validação visual em navegador.
-
-| Área | Estado observado | Próximo passo |
+| Área | Estado nesta branch | Pendência objetiva |
 | --- | --- | --- |
-| Catálogo, detalhe e filtros na URL | Implementados com consultas Axios/MSW e parâmetros na rota. | Validar manualmente combinações, histórico, estados vazios e mobile. |
-| Carrinho, cupom e cotação | Implementados com persistência local e validação simulada. | Revalidar manualmente todas as falhas e alterações em tempo real. |
-| Pedido, idempotência e estados | Há cenários de confirmado, recusado, pendente e timeout; o pedido guarda um snapshot. | Conferir manualmente recuperação após refresh/reconexão e transições terminais. |
-| Perfil, favoritos e carteiras | Há páginas e endpoints simulados; favoritos e perfis são guardados por identificador de usuário. | Validar erros, persistência e alternância entre contas. |
-| Isolamento de sessão | **Pendente.** Carrinho e carteiras usam chaves globais no `localStorage`, e consultas privadas usam chaves de cache sem o identificador da conta. O logout atualiza a sessão no cache, mas não limpa todos os dados privados. | Isolar persistência/cache por usuário e limpar dados/subscriptions ao sair ou trocar de conta. |
-| Expiração de sessão | **Pendente.** A sessão mock é persistida, mas não há expiração temporal reproduzível nem cenário dedicado para expiração durante o checkout. | Criar cenário controlável e documentar retomada do fluxo. |
-| MSW e condições de rede | Os handlers REST estão separados por área; há atrasos fixos, timeout de compra e eventos Socket.IO simulados. | Tornar latência/falhas configuráveis, cobrir 4xx/5xx e respostas fora de ordem e completar o reset determinístico. |
-| Playwright | Existem testes E2E em `tests/e2e`; a configuração usa Chromium pelo canal Microsoft Edge e mantém trace/screenshot em falha. | Completar os cenários restantes da seção 9, adicionar baselines visuais/relatórios e executar manualmente em desktop e mobile. |
-| Lighthouse | **Pendente.** Não há script ou relatórios versionados. | Seguir os comandos acima, executar três medições por página/perfil e registrar medianas e ambiente. |
-| Lint | **Não configurado.** Não existe script ou configuração de lint. | Decidir se o escopo exige lint e, se sim, selecionar/configurar ferramenta em outra etapa. |
-| Deploy | **Pendente por decisão do usuário.** | Publicar na Vercel e validar acesso direto/refresh das rotas após a publicação. |
+| Sessão e isolamento | Persistência e consultas privadas são por conta; logout/troca removem cache privado; sessão mock expira e o checkout preserva a retomada. | Reexecutar E2E de troca/expiração no Edge após a última alteração. |
+| Rede e MSW | Latência variável, atraso por consulta, falhas HTTP/rede, catálogo vazio e reset foram adicionados. MSW foi alinhado à faixa compatível com o binding Socket.IO e o worker foi regenerado. | Confirmar handshake do socket no navegador. |
+| Socket.IO | Cliente `socket.io-client` é carregado após o start do MSW; handlers usam o binding e filtros de versão/conta. | O último E2E executado ainda não conectou no Edge; a tentativa de nova execução foi bloqueada pela revisão de aprovação. Não tratar tempo real como validado até repetir o cenário. |
+| Playwright | Testes de fluxos e recuperação cobrem login, conta, checkout, timeout/idempotência e falhas. Relatório HTML e trace em falha estão configurados. | Baselines visuais versionadas e a matriz E2E final desktop/mobile ainda precisam ser geradas/executadas. |
+| Lighthouse | Configuração fixa, script e 12 execuções finais com relatórios HTML/JSON e medianas em `lighthouse-reports/`. | Metas da seção 10 atingidas nas páginas e perfis medidos. Detalhe mobile ficou no limite de Performance (90) e mantém LCP de 3,5 s. |
+| Lint e build | `npm run lint`, `npm run typecheck` e `npm run build` foram executados nesta branch. | Corrigir qualquer regressão encontrada nas validações finais. |
+| Deploy público | Não foi publicado. | Precisa de conta/credencial de hospedagem e da URL pública final para validar refresh das rotas. |
 
-Os pontos pendentes acima são itens identificados pela leitura do código, não funcionalidades que foram implementadas nesta auditoria documental. A especificação detalhada do desafio permanece nas seções seguintes; para o desenho atual da implementação, consulte [ARCHITECTURE.md](./ARCHITECTURE.md).
+O escopo funcional e as decisões de sincronização estão descritos em [ARCHITECTURE.md](./ARCHITECTURE.md). A seção acima distingue implementação no código de validação ainda não confirmada em navegador.
 
 ## Mapa do frontend
 

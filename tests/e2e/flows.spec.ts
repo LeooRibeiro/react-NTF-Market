@@ -1,12 +1,15 @@
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
-  // Garante estado limpo antes de cada teste
+  // Restaura o mock e recarrega para que React Query não reidrate dados do cenário anterior.
   await page.goto('/')
   await page.evaluate(() => {
     localStorage.clear()
     sessionStorage.clear()
+    const w = window as unknown as { __kurioResetData?: () => void }
+    w.__kurioResetData?.()
   })
+  await page.reload()
 })
 
 test('favorita e desfavorita NFT com persistência e atualização otimista', async ({ page }) => {
@@ -63,6 +66,7 @@ test('executa o fluxo de compra completa do catálogo ao recibo confirmado', asy
   await page.getByRole('link', { name: 'Continuar para pagamento' }).click()
   await expect(page.getByRole('heading', { name: 'Pagamento' }).first()).toBeVisible()
   await expect(page.getByText('demo@kurio.art')).toBeVisible()
+  await page.getByRole('button', { name: 'Conectar carteira' }).click()
 
   // 5. Confirma o pedido
   await page.getByRole('button', { name: 'Confirmar pedido' }).click()
@@ -135,31 +139,34 @@ test('cadastra nova carteira e gerencia carteira principal', async ({ page }) =>
 test('atualiza preço via Socket.IO durante checkout e exige nova confirmação', async ({ page }) => {
   // 1. Login e adição ao carrinho
   await page.goto('/')
-  await page.getByRole('button', { name: 'Fechar cadastro' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  const closeSignup = page.getByRole('button', { name: 'Fechar cadastro' })
+  if (await closeSignup.isVisible()) await closeSignup.click()
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
   await page.getByLabel('E-mail').fill('demo@kurio.art')
   await page.getByLabel('Senha', { exact: true }).fill('KurioPass123')
   await page.getByRole('button', { name: 'Entrar', exact: true }).last().click()
   await page.getByRole('button', { name: 'Continuar explorando' }).click()
 
-  // Adiciona item
   await page.goto('/nft/neon-vessel-552')
   await page.getByRole('button', { name: 'Comprar' }).click()
-  await expect(page.getByText(/adicionado ao carrinho/i)).toBeVisible()
+  await expect(page.locator('.detail-feedback')).toContainText('adicionado ao carrinho')
 
   // Vai para checkout
   await page.goto('/checkout')
   await expect(page.getByRole('heading', { name: 'Pagamento' }).first()).toBeVisible()
   await expect(page.getByText('Neon Vessel #552 × 1')).toBeVisible()
+  await page.getByRole('button', { name: 'Conectar carteira' }).click()
 
   // Aguarda conexão ativa do Socket.IO no browser e no MSW
+  await page.waitForTimeout(500)
   await page.waitForFunction(() => {
     const w = window as unknown as {
       __kurioSocket?: { connected: boolean }
       __kurioActiveSocketClients?: Set<unknown>
     }
     return Boolean(w.__kurioSocket?.connected) && (w.__kurioActiveSocketClients?.size ?? 0) > 0
-  })
+  }, { timeout: 5000 })
 
   // 2. Dispara evento nft.updated em tempo real simulando alteração na blockchain
   await page.evaluate(() => {

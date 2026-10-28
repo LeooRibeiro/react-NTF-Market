@@ -121,9 +121,9 @@ function NewsletterSignup() {
   return (
     <form className="min-w-0" onSubmit={handleSubmit}>
       <label className="mb-2 block text-sm font-bold" htmlFor="newsletter-email">Antecipe-se ao próximo lançamento</label>
-      <div className="flex overflow-hidden rounded border border-border">
+      <div className="newsletter-fields flex overflow-hidden rounded border border-border">
         <input
-          className="min-w-0 flex-1 bg-market-deep px-3 py-2 text-xs text-foreground outline-none placeholder:text-market-ink-muted"
+          className="min-w-0 flex-1 bg-market-deep px-3 py-2 text-xs text-foreground placeholder:text-market-ink-muted"
           id="newsletter-email"
           type="email"
           placeholder="Digite seu e-mail..."

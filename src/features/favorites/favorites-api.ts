@@ -89,5 +89,6 @@ export function useFavorites() {
     isFavorite,
     toggle,
     isPending: toggleMutation.isPending,
+    errorMessage: toggleMutation.isError ? 'Não foi possível atualizar os favoritos. Tente novamente.' : null,
   }
 }

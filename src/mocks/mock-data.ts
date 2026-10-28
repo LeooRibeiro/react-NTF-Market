@@ -2,14 +2,14 @@ import type { Nft } from '../features/catalog/catalog-api'
 
 export const nfts: Nft[] = [
   { id: 'neon-vessel-552', name: 'Neon Vessel #552', artist: 'Kurio Studio', category: 'Arte digital', network: 'Ethereum', price: '1.99', previousPrice: '2.29', image: '/assets/neon-vessel.png', rarity: 'RARO', listedAt: 17 },
-  { id: 'cosmic-bloom-118', name: 'Cosmic Bloom #118', artist: 'Mika Sol', category: 'Arte digital', network: 'Polygon', price: '1.29', image: '/assets/cosmic-bloom.png', listedAt: 15 },
-  { id: 'violet-nomad-314', name: 'Violet Nomad #314', artist: 'Mika Sol', category: 'Arte 3D', network: 'Solana', price: '1.39', image: '/assets/violet-nomad.png', listedAt: 14 },
+  { id: 'cosmic-bloom-118', name: 'Cosmic Bloom #118', artist: 'Mika Sol', category: 'Arte digital', network: 'Polygon', price: '1.29', image: '/assets/golden-beat.png', listedAt: 15 },
+  { id: 'violet-nomad-314', name: 'Violet Nomad #314', artist: 'Mika Sol', category: 'Arte 3D', network: 'Solana', price: '1.39', image: '/assets/golden-beat.png', listedAt: 14 },
   { id: 'ivory-baron-088', name: 'Ivory Baron #088', artist: 'Kurio Studio', category: 'Colecionáveis', network: 'Ethereum', price: '1.79', image: '/assets/ivory-baron.png', listedAt: 13 },
   { id: 'sage-nomad-009', name: 'Sage Nomad #009', artist: 'Lia Costa', category: 'Fotografia', network: 'Polygon', price: '1.69', image: '/assets/sage-nomad.png', listedAt: 12 },
   { id: 'golden-beat-207', name: 'Golden Beat #207', artist: 'Mika Sol', category: 'Música', network: 'Ethereum', price: '0.99', image: '/assets/golden-beat.png', listedAt: 11 },
   { id: 'emerald-ape-042', name: 'Emerald Ape #042', artist: 'Kurio Studio', category: 'Colecionáveis', network: 'Solana', price: '1.19', image: '/assets/emerald-ape.png', listedAt: 10 },
-  { id: 'golden-frequency-071', name: 'Golden Frequency #071', artist: 'Lia Costa', category: 'Arte digital', network: 'Polygon', price: '0.59', image: '/assets/cosmic-bloom.png', listedAt: 9 },
-  { id: 'golden-signal-160', name: 'Golden Signal #160', artist: 'Mika Sol', category: 'Generativa', network: 'Solana', price: '0.39', image: '/assets/violet-nomad.png', listedAt: 8 },
+  { id: 'golden-frequency-071', name: 'Golden Frequency #071', artist: 'Lia Costa', category: 'Arte digital', network: 'Polygon', price: '0.59', image: '/assets/golden-beat.png', listedAt: 9 },
+  { id: 'golden-signal-160', name: 'Golden Signal #160', artist: 'Mika Sol', category: 'Generativa', network: 'Solana', price: '0.39', image: '/assets/golden-beat.png', listedAt: 8 },
   { id: 'solar-orbit-403', name: 'Solar Orbit #403', artist: 'Lia Costa', category: 'Arte 3D', network: 'Ethereum', price: '2.12', image: '/assets/ivory-baron.png', listedAt: 7 },
   { id: 'minted-memory-055', name: 'Minted Memory #055', artist: 'Kurio Studio', category: 'Fotografia', network: 'Polygon', price: '0.82', image: '/assets/sage-nomad.png', listedAt: 6 },
   { id: 'afterglow-201', name: 'Afterglow #201', artist: 'Mika Sol', category: 'Música', network: 'Ethereum', price: '1.05', image: '/assets/golden-beat.png', listedAt: 5 },
@@ -42,6 +42,68 @@ export const favoritesStorageKey = 'kurio-favorites-v1'
 export const walletsStorageKey = 'kurio-wallets-v1'
 export const profilesStorageKey = 'kurio-profiles-v1'
 
+export type MockSession = { id: string; username: string; email: string; expiresAt?: number }
+
+/** Returns null for missing or expired mock sessions and removes expired state. */
+export function getMockSession(): MockSession | null {
+  try {
+    const session = JSON.parse(localStorage.getItem(sessionStorageKey) ?? 'null') as MockSession | null
+    if (!session) return null
+    if (session.expiresAt && session.expiresAt <= Date.now()) {
+      localStorage.removeItem(sessionStorageKey)
+      return null
+    }
+    return session
+  } catch {
+    localStorage.removeItem(sessionStorageKey)
+    return null
+  }
+}
+
+export function getScopedStorageKey(baseKey: string, userId: string | null | undefined = getMockSession()?.id) {
+  return userId ? `${baseKey}:${userId}` : `${baseKey}:guest`
+}
+
+export function establishMockSession(user: Omit<MockSession, 'expiresAt'>, ttlMs = 60 * 60 * 1000) {
+  const guestKey = getScopedStorageKey(cartStorageKey, null)
+  const accountCartKey = getScopedStorageKey(cartStorageKey, user.id)
+  const guestCart = localStorage.getItem(guestKey)
+  if (guestCart) {
+    try {
+      const guestItems = JSON.parse(guestCart) as Array<{ nftId: string; quantity: number }>
+      const accountItems = JSON.parse(localStorage.getItem(accountCartKey) ?? '[]') as Array<{ nftId: string; quantity: number }>
+      for (const item of guestItems) {
+        const existing = accountItems.find((entry) => entry.nftId === item.nftId)
+        if (existing) existing.quantity = Math.min(5, existing.quantity + item.quantity)
+        else accountItems.push({ ...item, quantity: Math.min(5, item.quantity) })
+      }
+      localStorage.setItem(accountCartKey, JSON.stringify(accountItems))
+    } catch {
+      localStorage.removeItem(accountCartKey)
+    }
+  }
+  localStorage.removeItem(guestKey)
+  const guestCouponKey = getScopedStorageKey('kurio-cart-coupon-v1', null)
+  const accountCouponKey = getScopedStorageKey('kurio-cart-coupon-v1', user.id)
+  const guestCoupon = localStorage.getItem(guestCouponKey)
+  if (guestCoupon && !localStorage.getItem(accountCouponKey)) localStorage.setItem(accountCouponKey, guestCoupon)
+  localStorage.removeItem(guestCouponKey)
+  localStorage.setItem(sessionStorageKey, JSON.stringify({ ...user, expiresAt: Date.now() + ttlMs }))
+}
+
+export function expireMockSession() {
+  const session = getMockSession()
+  if (session) {
+    localStorage.setItem(sessionStorageKey, JSON.stringify({ ...session, expiresAt: Date.now() - 1 }))
+    window.dispatchEvent(new Event('kurio:session-expired'))
+  }
+}
+
+if (typeof window !== 'undefined') {
+  const target = window as unknown as Record<string, unknown>
+  target.__kurioExpireSession = expireMockSession
+}
+
 export type StoredAccount = { id: string; username: string; email: string; passwordHash: string }
 
 /** Lê contas mock persistidas e retorna lista vazia se o armazenamento estiver inválido. */
@@ -62,11 +124,23 @@ export async function hashPassword(password: string) {
 /** Recupera quantidades do carrinho entre navegações e atualizações da página. */
 export function readCart(): Array<{ nftId: string; quantity: number }> {
   try {
-    const value = localStorage.getItem(cartStorageKey)
+    const value = localStorage.getItem(getScopedStorageKey(cartStorageKey))
     return value ? JSON.parse(value) as Array<{ nftId: string; quantity: number }> : []
   } catch {
     return []
   }
+}
+
+export function writeCart(items: Array<{ nftId: string; quantity: number }>) {
+  localStorage.setItem(getScopedStorageKey(cartStorageKey), JSON.stringify(items))
+}
+
+export function getOrdersStorageKey(userId = getMockSession()?.id) {
+  return getScopedStorageKey(ordersStorageKey, userId)
+}
+
+export function getIdempotencyStorageKey(userId = getMockSession()?.id) {
+  return getScopedStorageKey(idempotencyStorageKey, userId)
 }
 
 /** Completa as linhas persistidas do carrinho com os dados atuais dos NFTs. */
@@ -101,15 +175,15 @@ export const defaultWallets: Wallet[] = [
 
 export function readWallets(): Wallet[] {
   try {
-    const raw = localStorage.getItem(walletsStorageKey)
-    return raw ? JSON.parse(raw) as Wallet[] : defaultWallets
+    const raw = localStorage.getItem(getScopedStorageKey(walletsStorageKey))
+    return raw ? JSON.parse(raw) as Wallet[] : JSON.parse(JSON.stringify(defaultWallets)) as Wallet[]
   } catch {
-    return defaultWallets
+    return JSON.parse(JSON.stringify(defaultWallets)) as Wallet[]
   }
 }
 
 export function writeWallets(wallets: Wallet[]) {
-  localStorage.setItem(walletsStorageKey, JSON.stringify(wallets))
+  localStorage.setItem(getScopedStorageKey(walletsStorageKey), JSON.stringify(wallets))
 }
 
 export function readFavorites(userId: string): string[] {

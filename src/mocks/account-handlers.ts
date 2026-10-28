@@ -1,12 +1,16 @@
 import { http, HttpResponse } from 'msw'
-import { accountsStorageKey, sessionStorageKey, type Wallet, readWallets, writeWallets, readFavorites, writeFavorites, readProfile, writeProfile, readAccounts, hashPassword } from './mock-data'
+import { accountsStorageKey, sessionStorageKey, type Wallet, readWallets, writeWallets, readFavorites, writeFavorites, readProfile, writeProfile, readAccounts, hashPassword, getMockSession } from './mock-data'
 import { resetMockDatabase } from './socket-handlers'
+import { takeNetworkFailure } from './network-scenarios'
 export const accountHandlers = [
 // Wallets CRUD
-  http.get('/api/wallets', async () => HttpResponse.json(readWallets())),
+  http.get('/api/wallets', async () => {
+    if (!getMockSession()) return HttpResponse.json({ message: 'Autenticação necessária.' }, { status: 401 })
+    return HttpResponse.json(readWallets())
+  }),
 
   http.post('/api/wallets', async ({ request }) => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Autenticação necessária.' }, { status: 401 })
     const body = await request.json() as { name?: string; address?: string; network?: string; primary?: boolean }
     if (!body.name?.trim() || !body.address?.trim() || !body.network?.trim()) {
@@ -30,7 +34,7 @@ export const accountHandlers = [
   }),
 
   http.patch('/api/wallets/:walletId', async ({ params, request }) => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Autenticação necessária.' }, { status: 401 })
     const body = await request.json() as Partial<Wallet>
     const wallets = readWallets()
@@ -47,7 +51,7 @@ export const accountHandlers = [
   }),
 
   http.delete('/api/wallets/:walletId', async ({ params }) => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Autenticação necessária.' }, { status: 401 })
     let wallets = readWallets()
     const target = wallets.find((w) => w.id === params.walletId)
@@ -62,16 +66,18 @@ export const accountHandlers = [
 
   // Favorites (Consulta, inclusão e remoção)
   http.get('/api/favorites', async () => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ items: [] })
-    const user = JSON.parse(session) as { id: string }
+    const user = session
     return HttpResponse.json({ items: readFavorites(user.id) })
   }),
 
   http.post('/api/favorites', async ({ request }) => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const failure = takeNetworkFailure('POST /api/favorites')
+    if (failure) return failure
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Entre na sua conta para favoritar.' }, { status: 401 })
-    const user = JSON.parse(session) as { id: string }
+    const user = session
     const body = await request.json() as { nftId?: string }
     const nftId = String(body.nftId ?? '')
     const favorites = readFavorites(user.id)
@@ -83,9 +89,11 @@ export const accountHandlers = [
   }),
 
   http.delete('/api/favorites/:nftId', async ({ params }) => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const failure = takeNetworkFailure('DELETE /api/favorites/:nftId')
+    if (failure) return failure
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Entre na sua conta para alterar favoritos.' }, { status: 401 })
-    const user = JSON.parse(session) as { id: string }
+    const user = session
     const nftId = String(params.nftId)
     const favorites = readFavorites(user.id).filter((id) => id !== nftId)
     writeFavorites(user.id, favorites)
@@ -94,16 +102,16 @@ export const accountHandlers = [
 
   // Profile (Consulta, atualização e alteração de senha)
   http.get('/api/profile', async () => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Sessão inválida.' }, { status: 401 })
-    const user = JSON.parse(session) as { id: string; username: string; email: string }
+    const user = session
     return HttpResponse.json(readProfile(user.id, user.username, user.email))
   }),
 
   http.patch('/api/profile', async ({ request }) => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Sessão inválida.' }, { status: 401 })
-    const user = JSON.parse(session) as { id: string; username: string; email: string }
+    const user = session
     const body = await request.json() as { username?: string; avatar?: string; bio?: string }
     const profile = readProfile(user.id, user.username, user.email)
     if (body.username?.trim()) {
@@ -118,9 +126,9 @@ export const accountHandlers = [
   }),
 
   http.post('/api/profile/password', async ({ request }) => {
-    const session = localStorage.getItem(sessionStorageKey)
+    const session = getMockSession()
     if (!session) return HttpResponse.json({ message: 'Sessão inválida.' }, { status: 401 })
-    const user = JSON.parse(session) as { id: string; email: string }
+    const user = session
     const body = await request.json() as { currentPassword?: string; newPassword?: string }
     const currentPassword = body.currentPassword ?? ''
     const newPassword = body.newPassword ?? ''

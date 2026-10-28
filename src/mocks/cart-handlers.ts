@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
-import { cartStorageKey, nfts, readCart, cartResponse, toUnits, fromUnits } from './mock-data'
+import { nfts, readCart, writeCart, cartResponse, toUnits, fromUnits } from './mock-data'
+import { scenarioDelay, takeNetworkFailure } from './network-scenarios'
 export const cartHandlers = [
 // Cart
   http.get('/api/cart', async () => HttpResponse.json(cartResponse())),
@@ -21,7 +22,7 @@ export const cartHandlers = [
     }
     if (existing) existing.quantity += quantity
     else items.push({ nftId, quantity })
-    localStorage.setItem(cartStorageKey, JSON.stringify(items))
+    writeCart(items)
     return HttpResponse.json(cartResponse(items), { status: 201 })
   }),
 
@@ -39,17 +40,20 @@ export const cartHandlers = [
       return HttpResponse.json({ message: 'Esta edição está esgotada.' }, { status: 409 })
     }
     item.quantity = quantity
-    localStorage.setItem(cartStorageKey, JSON.stringify(items))
+    writeCart(items)
     return HttpResponse.json(cartResponse(items))
   }),
 
   http.delete('/api/cart/items/:nftId', async ({ params }) => {
     const items = readCart().filter((item) => item.nftId !== params.nftId)
-    localStorage.setItem(cartStorageKey, JSON.stringify(items))
+    writeCart(items)
     return HttpResponse.json(cartResponse(items))
   }),
 
   http.post('/api/cart/quote', async ({ request }) => {
+    await scenarioDelay(request, 'POST /api/cart/quote', 100)
+    const failure = takeNetworkFailure('POST /api/cart/quote')
+    if (failure) return failure
     const body = await request.json() as { coupon?: string }
     const coupon = (body.coupon ?? '').trim().toUpperCase()
     if (coupon && coupon !== 'KURIO10') {

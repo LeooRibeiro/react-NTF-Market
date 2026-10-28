@@ -13,8 +13,9 @@ function RootLayout() {
   useRealtimeSync()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const showMarket = pathname === '/' || pathname === '/cart' || pathname === '/checkout'
+  const mainTarget = pathname === '/' ? 'catalog' : pathname === '/cart' ? 'cart-main' : pathname === '/checkout' ? 'checkout-main' : 'page-main'
 
-  return <>{showMarket && <HomePage />}<Outlet /></>
+  return <><a className="skip-link" href={`#${mainTarget}`}>Pular para o conteúdo principal</a>{showMarket && <HomePage />}<div id="page-main" tabIndex={-1}><Outlet /></div></>
 }
 
 function NotFoundPage() {
