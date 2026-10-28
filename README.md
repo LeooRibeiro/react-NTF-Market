@@ -1,67 +1,159 @@
-# Resposta ao teste técnico — Kurio NFT Marketplace
+# Kurio — Marketplace de NFTs
 
-## Entrega
+Aplicação de marketplace de NFTs feita para o teste técnico. Inclui catálogo pesquisável, detalhe de NFT, conta, carrinho, checkout e recibo, com API simulada por MSW e atualização em tempo real via Socket.IO simulado.
 
-Aplicação de marketplace de NFTs construída com React e TypeScript, baseada no layout do Figma. A implementação contempla descoberta de NFTs, conta do colecionador, carrinho e compra simulada, com responsividade, acessibilidade, cenários de rede e medição de performance.
+- **Aplicação publicada:** [react-ntf-market-iota.vercel.app](https://react-ntf-market-iota.vercel.app/)
+- **Repositório:** [LeooRibeiro/react-NTF-Market](https://github.com/LeooRibeiro/react-NTF-Market) — branch de entrega: [`codex/fix-language-statistics`](https://github.com/LeooRibeiro/react-NTF-Market/tree/codex/fix-language-statistics)
+- **Arquitetura e decisões:** [ARCHITECTURE.md](./ARCHITECTURE.md)
 
-**Legenda:** ✅ Implementado; 🟡 Implementado no código, validação final pendente; ⏳ Pendente de entrega.
+> Foi adicionada ao repositório a configuração de rewrite para a SPA. Após o próximo deploy, valide também URLs internas como `/cart`, `/checkout`, `/profile` e `/nft/neon-vessel-552`, inclusive após atualizar a página. A publicação atual ainda não contém essa correção até o novo deploy terminar.
 
-## Requisitos do enunciado e implementação
+## Telas do projeto
 
-| Tópico | Pedido | O que está sendo entregue | Estado |
-| --- | --- | --- | --- |
-| 1. Escopo | Fluxos de descoberta, compra e conta em desktop e mobile, usando dados simulados. | Marketplace responsivo com catálogo, detalhe, carrinho, checkout, confirmação, login, cadastro, perfil e carteiras. | ✅ |
-| 2. Stack | React, TypeScript, TanStack Router/Query, Axios, REST, Socket.IO, Tailwind, shadcn/ui, MSW, Playwright e Lighthouse. | React/TypeScript; rotas com TanStack Router; estado remoto com TanStack Query; chamadas Axios para contratos REST simulados; Tailwind CSS; componentes próprios no padrão shadcn/ui usando primitives Radix; MSW e binding Socket.IO; Playwright e Lighthouse. | ✅ |
-| 3. Telas e fluxos | Início, detalhe do NFT, carrinho, pagamento, confirmação, login/cadastro, perfil e carteiras. | As telas estão conectadas por fluxos navegáveis. Favoritos, quantidades, cupons, cotação, seleção de carteira, edição de perfil e alterações de senha funcionam no cenário simulado. | ✅ |
-| 4. Integração e estado | Estados de carregamento/erro/sucesso, cache coerente, URL navegável e prevenção de respostas obsoletas. | Busca, filtros, ordenação e paginação mantêm o estado na URL; queries e mutations atualizam ou invalidam o cache; favoritos usam atualização otimista com rollback. | ✅ |
-| 5. Contratos REST | Recursos para conta, NFTs, favoritos, carrinho, cotação, pedidos, perfil e carteiras. | Contratos tipados e endpoints simulados cobrem esses recursos, incluindo erros de validação, autorização, conflito e falha transitória. Pedido registra snapshot e chave de idempotência. | ✅ |
-| 6. MSW e rede | Mocking na camada de rede, persistência e cenários reproduzíveis. | MSW inicia antes da interface. Os cenários incluem catálogo vazio, latência variável, falha HTTP/rede, cupom inválido, sessão expirada, disponibilidade/preço alterados e timeout recuperável. Os dados podem ser reiniciados. | ✅ |
-| 7. Tempo real | Socket.IO para atualizações de NFT e pedido, reconexão e reconciliação com REST. | O cliente socket.io-client recebe eventos por WebSocket interceptado pelo binding do MSW. Atualizações de preço/estoque invalidam a cotação; pedidos podem ser reconciliados após recarga. Fluxo de atualização de preço, nova confirmação e total final coberto por E2E no Edge. | ✅ |
-| 8. Interface, responsividade e acessibilidade | Layout desktop/tablet/mobile, teclado, foco, semântica, mensagens associadas, alternativas textuais, contraste e zoom. | A interface reorganiza catálogo, detalhe, carrinho e checkout para telas estreitas; inclui foco visível, controle de foco em diálogos, labels, estados anunciados e suporte a viewport de 320 px. Ajustes visuais e substituição de asset estão documentados abaixo. | ✅ |
-| 9. Playwright | E2E dos fluxos principais, erros, acessibilidade, rede e tempo real; execução desktop/mobile. | Suíte E2E no Edge cobre compra, conta, perfil/carteiras, sessão, falhas, timeout/idempotência, atualização de preço e regressão visual desktop/mobile da home, detalhe, carrinho e pagamento. Última execução: 25 testes aprovados. | ✅ |
-| 10. Lighthouse | Três medições por página e perfil; metas de Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95 e SEO ≥ 90. | As medianas em três medições passaram as metas na home e no detalhe, em mobile e desktop. Resultados e limitações estão registrados em lighthouse-reports/README.md. | ✅ |
-| 11. Critérios de avaliação | Fidelidade, fluxos, integração, tempo real, mocking, testes, acessibilidade, performance e documentação. | A tabela abaixo resume as evidências e as validações restantes. | — |
+### Início e catálogo
 
-## Evidências dos critérios de avaliação
+![Página inicial com destaque, filtros e catálogo de NFTs](public/assets/home-page.png)
 
-| Critério | Pontos | Evidência desta entrega | Estado |
-| --- | ---: | --- | --- |
-| Fidelidade visual e responsividade | 20 | Composição baseada no Figma; layouts adaptáveis; conteúdo de modais rolável em viewport reduzida. | ✅ |
-| Fluxos e experiência de uso | 20 | Cadastro/login simulados, catálogo, carrinho, cotação e compra com resultado confirmado, recusado ou pendente. | ✅ |
-| Integração e estado | 15 | Router, Query, Axios, contratos REST tipados, persistência e isolamento de dados por conta. | ✅ |
-| Tempo real | 10 | Eventos de NFT/pedido e reconciliação implementados na simulação; conexão e atualização de cotação validadas por E2E no Edge. | ✅ |
-| Mocking | 10 | MSW cobre dados de demonstração, persistência, falhas configuráveis e reset. | ✅ |
-| Testes | 10 | Suíte Playwright validada no Edge: 25 testes aprovados, incluindo fluxos, recuperação, tempo real, acessibilidade e snapshots desktop/mobile. | ✅ |
-| Acessibilidade | 5 | Foco, teclado, labels, erros associados e feedbacks anunciados; Lighthouse Accessibility marcou 100 nas quatro medições medianas. | ✅ |
-| Performance | 5 | Medianas registradas para home e detalhe em mobile e desktop; todas atingem as metas do enunciado. | ✅ |
-| Arquitetura e documentação | 5 | Decisões, contratos, persistência, cache, eventos e limitações estão em ARCHITECTURE.md. | ✅ |
+### Detalhes do NFT
 
-### Resultados Lighthouse
+![Detalhe de NFT com edição, preço, descrição e ação de compra](public/assets/details-nft-page.png)
 
-| Página | Perfil | Performance | Acessibilidade | Boas práticas | SEO | LCP mediano | CLS mediano | TBT mediano |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Início | Mobile | 96 | 100 | 96 | 100 | 805 ms | 0 | 219 ms |
-| Início | Desktop | 100 | 100 | 96 | 100 | 262 ms | 0 | 6 ms |
-| Detalhe | Mobile | 90 | 100 | 96 | 100 | 3502 ms | 0 | 95 ms |
-| Detalhe | Desktop | 99 | 100 | 96 | 100 | 851 ms | 0 | 0 ms |
+### Carrinho e cupom
 
-Os valores são medianas de três execuções em build de produção local com MSW e throttling simulado do Lighthouse. O detalhe mobile atinge a meta de Performance no limite e apresenta LCP mais alto porque a arte principal só é renderizada após a consulta do NFT. Os relatórios completos estão em lighthouse-reports/.
+![Carrinho com itens, quantidades, resumo e cupom aplicado](public/assets/cart-modal.png)
 
-## Ajustes de layout e assets
+### Pagamento e escolha da carteira
 
-- O início mobile prioriza busca/filtros, cartões em duas colunas, categorias com rolagem horizontal e navegação inferior.
-- Carrinho e checkout usam painel de tela cheia em celulares; o recibo da compra reorganiza resumo e itens para telas estreitas.
-- Foco visível, indicação de seleção além de cor, rolagem interna dos diálogos e largura mínima de 320 px foram adicionados para acessibilidade e zoom.
-- O arquivo public/assets/cosmic-bloom.png foi removido e as referências que o utilizavam passaram a usar public/assets/golden-beat.png, conforme solicitado. Os identificadores e títulos dos NFTs foram mantidos.
-- As imagens e fontes da interface são locais. A paleta e a tipografia do layout foram preservadas.
+![Checkout com dados do colecionador, carteira, rede e cenários de pagamento](public/assets/payment-modal.png)
 
-## Limites do protótipo e estado da publicação
+### Confirmação e recibo
 
-Autenticação, pagamentos, carteiras, catálogo e eventos são simulados no navegador por MSW. Não há backend de produção, transação blockchain, conexão com extensão de carteira ou gateway real de pagamento. As credenciais e contas de demonstração não devem ser usadas como autenticação real.
+![Confirmação da compra com resumo da transação e NFTs adquiridos](public/assets/description-pay-modal.png)
 
-**Deploy público:** pendente de publicação na Vercel. A URL será adicionada após o deploy.
-**Validação restante:** executar a suíte E2E final no Edge, confirmar o cenário Socket.IO no navegador e publicar/verificar o acesso direto e o refresh das rotas.
+### Login e cadastro
 
-A arquitetura e as limitações técnicas estão detalhadas em [ARCHITECTURE.md](./ARCHITECTURE.md).
+![Modal de autenticação para entrar ou criar perfil](public/assets/login-modal.png)
 
-Roteiro de apresentação: [ROTEIRO_APRESENTACAO.txt](./ROTEIRO_APRESENTACAO.txt).
+### Perfil e segurança
+
+![Perfil do colecionador, escolha de avatar, edição e alteração de senha](public/assets/profile-page.png)
+
+## Requisitos e implementação
+
+| Tópico | O que é entregue | Estado |
+| --- | --- | --- |
+| Escopo e telas | Catálogo, detalhe, carrinho, checkout, recibo, login/cadastro, perfil e carteiras. | ✅ |
+| Stack | React, TypeScript, TanStack Router/Query, Axios, Tailwind CSS, Radix UI, MSW, Socket.IO, Playwright e Lighthouse. | ✅ |
+| Estado e integração | Busca/filtros na URL, cache por domínio, mutations, favoritos otimistas com rollback, persistência por conta e idempotência de pedido. | ✅ |
+| API e mocks | Contratos REST simulados, fixtures e cenários de sucesso, falha, latência, sessão expirada, cotação alterada e timeout. | ✅ |
+| Tempo real | Eventos Socket.IO simulados para preço, disponibilidade e pedido; cotação é invalidada e pode ser reconciliada com REST. | ✅ |
+| Responsividade e acessibilidade | Desktop/tablet/mobile, viewport de 320 px, navegação por teclado, foco visível, labels, erros associados, status anunciados e drawers roláveis. | ✅ |
+| Playwright | 25 testes aprovados no Edge, incluindo fluxos, recuperação, tempo real, acessibilidade, viewport tablet e regressão visual desktop/mobile. | ✅ |
+| Lighthouse | Medianas de três execuções em home e detalhe, desktop/mobile, dentro das metas definidas no teste. | ✅ |
+
+Consulte [Resultados Lighthouse](./lighthouse-reports/README.md) e [Arquitetura](./ARCHITECTURE.md) para evidências e decisões técnicas.
+
+## Requisitos para executar localmente
+
+- Node.js **20.19+** ou **22.12+**.
+- npm (o `package-lock.json` está versionado; use `npm ci`).
+- Microsoft Edge instalado para rodar Playwright; Chrome ou Edge para Lighthouse.
+
+## Instalação e desenvolvimento
+
+```bash
+git clone https://github.com/LeooRibeiro/react-NTF-Market.git
+cd react-NTF-Market
+git checkout codex/fix-language-statistics
+npm ci
+npm run dev
+```
+
+O Vite informa a URL local no terminal. O MSW inicia automaticamente no navegador antes da interface; nenhum backend ou serviço privado é necessário.
+
+## Variáveis de ambiente
+
+Não há segredos nem variáveis obrigatórias para a demonstração. Os mocks ficam habilitados por padrão. A única variável é:
+
+| Variável | Padrão | Uso |
+| --- | --- | --- |
+| `VITE_ENABLE_MOCKS` | `true` (quando omitida) | Defina como `false` apenas para apontar a interface a uma API compatível real em `/api`. Sem backend, mantenha `true` ou não defina a variável. |
+
+Um arquivo `.env.example` acompanha o repositório. Para usá-lo, copie-o para `.env.local`; não há valores secretos a preencher.
+
+## Acesso de demonstração
+
+- **E-mail:** `demo@kurio.art`
+- **Senha:** `KurioPass123`
+- **Cupom válido:** `KURIO10` — aplica 10% de desconto no subtotal.
+
+Pagamentos, carteiras e login social são simulações; não conectam extensões, blockchain ou provedores externos.
+
+## Comandos
+
+| Comando | Ação |
+| --- | --- |
+| `npm run dev` | Desenvolvimento com MSW. |
+| `npm run typecheck` | Verificação TypeScript. |
+| `npm run lint` | ESLint sem avisos. |
+| `npm run build` | Verificação de tipos e build de produção em `dist/`. |
+| `npm run preview` | Serve localmente o build de produção. |
+| `npm run test:e2e` | Playwright no Microsoft Edge; inicia o Vite automaticamente. |
+| `npm run audit:lighthouse` | Executa três auditorias por página e perfil e atualiza `lighthouse-reports/`. Requer PowerShell e Edge/Chrome; baixa a versão de Lighthouse fixada na configuração. |
+
+## Cenários, falhas e reset
+
+No checkout, escolha uma opção em **Simulação de pagamento** antes de confirmar:
+
+- **Confirmar pagamento:** gera pedido confirmado e recibo.
+- **Recusar pagamento:** mostra a recusa e preserva os itens no carrinho.
+- **Manter pedido pendente:** cria pedido pendente, recuperável após atualizar a rota do pedido.
+- **Simular timeout:** persiste a tentativa e simula falha de rede; a ação de recuperação consulta a tentativa idempotente.
+
+Para os outros cenários, abra o DevTools na aplicação e use a aba Console. Os helpers existem no build de demonstração enquanto MSW está ativo. Depois do comando, acione a ação da interface que faz uma nova consulta (por exemplo, mudar a busca ou filtro):
+
+```js
+// Forçar catálogo vazio
+window.__kurioConfigureNetwork({ emptyCatalog: true })
+
+// Latências variadas nas próximas consultas do catálogo
+window.__kurioConfigureNetwork({ variableLatency: true, latencySequence: [800, 35, 140] })
+
+// Duas respostas 503 para exercitar estado de erro e nova tentativa
+window.__kurioQueueNetworkFailure('GET /api/nfts', { kind: 'http', status: 503 }, 2)
+
+// Falha de rede ao favoritar (entre no detalhe e clique em Favoritar)
+window.__kurioQueueNetworkFailure('POST /api/favorites', { kind: 'http', status: 503 })
+
+// Expirar a sessão da conta atual
+window.__kurioExpireSession()
+
+// Emitir evento Socket.IO de mudança de preço para um NFT
+window.__kurioUpdateNftPrice('neon-vessel-552', '2.50')
+```
+
+Cupom inválido: aplique qualquer código diferente de `KURIO10` no carrinho. Para retornar ao estado inicial, execute no Console e atualize a página:
+
+```js
+window.__kurioResetData()
+location.reload()
+```
+
+O reset limpa sessão, dados locais, cenários de rede e alterações do catálogo. Também é possível limpar os dados do site no navegador; isso remove a sessão e o carrinho da conta atual.
+
+## Testes e auditoria
+
+A suíte Playwright foi executada no Edge em 28/10/2026: **25 aprovados**. Para reproduzir, instale o Microsoft Edge, execute `npm ci` e `npm run test:e2e`. Os testes visuais comparam home, detalhe, carrinho e checkout em desktop e mobile.
+
+Os relatórios Lighthouse versionados foram produzidos em build local de produção com MSW e throttling simulado. As medianas atendem às metas: Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95 e SEO ≥ 90. O detalhe mobile ficou no limite de performance (90) e tem LCP mediano de aproximadamente 3,5 s; veja a análise em `lighthouse-reports/README.md`.
+
+## Limitações conhecidas
+
+- O backend é simulado pelo MSW no navegador; desabilitar mocks sem fornecer uma API compatível deixa as chamadas `/api` sem serviço.
+- Login, pagamento, carteiras, transações e eventos não representam serviços financeiros ou blockchain reais.
+- Os dados persistem no armazenamento local do navegador e não são compartilhados entre dispositivos.
+- A arte principal do detalhe é carregada depois da consulta do NFT, o que aumenta o LCP mobile.
+
+## Créditos e ajustes de assets
+
+As artes e fontes usadas pela interface ficam no projeto em `public/assets`. Conforme solicitado, as referências que usavam `cosmic-bloom.png` foram substituídas por `golden-beat.png`, e o arquivo antigo foi removido. As capturas desta documentação também ficam nessa pasta. A paleta e a tipografia do layout foram mantidas; ajustes de responsividade e acessibilidade estão descritos em `ARCHITECTURE.md`.

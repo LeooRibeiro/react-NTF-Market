@@ -2,7 +2,11 @@
 
 ## Inicialização e rotas
 
-`src/main.tsx` inicia o worker MSW antes de montar React. `VITE_ENABLE_MOCKS=false` deixa o caminho para uma API compatível em `/api`; este repositório não configura backend nem proxy real. O roteador está em `src/router.tsx`; páginas usam TanStack Query e Axios por meio de clientes por domínio em `src/features/`.
+`src/main.tsx` inicia o worker MSW antes de montar React. Os mocks ficam ativos por padrão; `VITE_ENABLE_MOCKS=false` desativa o worker e exige uma API compatível em `/api`. O `.env.example` registra a configuração da demonstração. O roteador está em `src/router.tsx`; páginas usam TanStack Query e Axios por meio de clientes por domínio em `src/features/`.
+
+## Deploy
+
+A aplicação está publicada em [react-ntf-market-iota.vercel.app](https://react-ntf-market-iota.vercel.app/). O build Vite gera `dist/` com `npm run build`; nenhuma variável secreta é necessária e `VITE_ENABLE_MOCKS` deve permanecer `true` ou não definida para manter os fluxos demonstrativos. `vercel.json` reescreve as rotas da SPA para `index.html`, permitindo deep links e refresh em rotas do TanStack Router. A versão implantada precisa ser atualizada após mudanças nessa configuração. Os mocks e fixtures são entregues no bundle do navegador e continuam independentes de backend privado.
 
 ## Contratos REST simulados
 
@@ -48,7 +52,7 @@ A interface usa `socket.io-client` com transporte WebSocket. O import do cliente
 
 `src/lib/socket.ts` descarta versões repetidas ou antigas por recurso. O hook `src/features/realtime/use-realtime-sync.ts` registra e limpa listeners, filtra eventos de pedidos por conta e invalida catálogo, carrinho, carteiras e pedidos após reconexão. Após refresh, a página de pedido reconcilia o estado via REST.
 
-A conexão Socket.IO ainda requer uma execução final do cenário E2E no Edge: a execução anterior à última correção de bootstrap não conectou. O setup normaliza um descriptor WebSocket específico do host antes de habilitar o worker; esse caminho deve ser confirmado no navegador suportado antes de considerar tempo real validado.
+A conexão Socket.IO é validada pelo cenário E2E no Edge: o teste altera o preço durante o checkout, recebe o aviso de cotação atualizada, exige nova confirmação e verifica o total final. O setup normaliza um descriptor WebSocket específico do host antes de habilitar o worker MSW.
 
 ## Cache
 
@@ -64,8 +68,8 @@ Desvios visuais do Figma incluem o contorno de foco, o marcador de filtro seleci
 
 ## Validação e limitações
 
-- `npm run typecheck`, `npm run lint` e `npm run build` foram executados após as últimas mudanças de código.
-- Playwright usa Chromium pelo canal Microsoft Edge, um worker, trace em falha e relatório HTML. A execução E2E final não foi autorizada após a última alteração; baselines visuais ainda não foram versionadas.
+- `npm run typecheck`, `npm run lint` e `npm run build` foram executados após as mudanças de implementação.
+- Playwright usa Chromium pelo canal Microsoft Edge, um worker, trace em falha e relatório HTML. A execução final em 28/10/2026 teve 25 testes aprovados; snapshots desktop/mobile estão versionados em `tests/e2e/visual.spec.ts-snapshots/`.
 - `lighthouse-audit.json` fixa versão, páginas, perfis, metas e métricas. `scripts/audit-lighthouse.ps1` grava os relatórios individuais e as medianas em `lighthouse-reports/`; atualize o build/auditoria após qualquer mudança final de UI.
 - A auditoria final registrou Performance mobile 96 na home e 90 no detalhe (meta mínima 90), Accessibility 100, Best Practices 96 e SEO 100 nas duas rotas. O CLS da home caiu de 0,325 para 0 ao reservar o espaço da imagem do hero. O detalhe mantém LCP mediano de 3,5 s: o relatório mostra que a imagem principal não é descoberta no HTML inicial, pois os dados do NFT são carregados no cliente antes da renderização. O detalhe também reporta 134 KiB de JavaScript não utilizado; divisão adicional de rotas/runtime pode reduzir esse custo.
-- Não existe deploy público nesta branch. O README requer URL pública; credencial/conta de hospedagem não está configurada no repositório.
+- A primeira URL publicada respondia à home, mas as rotas internas `/cart` e `/nft/neon-vessel-552` retornavam 404 ao acesso direto. `vercel.json` foi adicionado para reescrever caminhos da SPA para `index.html`; após o próximo deploy, confirme essas rotas e refresh no domínio publicado.
