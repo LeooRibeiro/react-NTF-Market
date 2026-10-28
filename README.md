@@ -3,10 +3,14 @@
 Aplicação de marketplace de NFTs feita para o teste técnico. Inclui catálogo pesquisável, detalhe de NFT, conta, carrinho, checkout e recibo, com API simulada por MSW e atualização em tempo real via Socket.IO simulado.
 
 - **Aplicação publicada:** [react-ntf-market-iota.vercel.app](https://react-ntf-market-iota.vercel.app/)
-- **Repositório:** [LeooRibeiro/react-NTF-Market](https://github.com/LeooRibeiro/react-NTF-Market) — branch de entrega: [`codex/fix-language-statistics`](https://github.com/LeooRibeiro/react-NTF-Market/tree/codex/fix-language-statistics)
+- **Repositório:** [LeooRibeiro/react-NTF-Market](https://github.com/LeooRibeiro/react-NTF-Market)
 - **Arquitetura e decisões:** [ARCHITECTURE.md](./ARCHITECTURE.md)
+- 
+## Acesso de demonstração
 
-> Foi adicionada ao repositório a configuração de rewrite para a SPA. Após o próximo deploy, valide também URLs internas como `/cart`, `/checkout`, `/profile` e `/nft/neon-vessel-552`, inclusive após atualizar a página. A publicação atual ainda não contém essa correção até o novo deploy terminar.
+- **E-mail:** `demo@kurio.art`
+- **Senha:** `KurioPass123`
+- **Cupom válido:** `KURIO10` — aplica 10% de desconto no subtotal.
 
 ## Telas do projeto
 
@@ -70,24 +74,6 @@ npm run dev
 ```
 
 O Vite informa a URL local no terminal. O MSW inicia automaticamente no navegador antes da interface; nenhum backend ou serviço privado é necessário.
-
-## Variáveis de ambiente
-
-Não há segredos nem variáveis obrigatórias para a demonstração. Os mocks ficam habilitados por padrão. A única variável é:
-
-| Variável | Padrão | Uso |
-| --- | --- | --- |
-| `VITE_ENABLE_MOCKS` | `true` (quando omitida) | Defina como `false` apenas para apontar a interface a uma API compatível real em `/api`. Sem backend, mantenha `true` ou não defina a variável. |
-
-Um arquivo `.env.example` acompanha o repositório. Para usá-lo, copie-o para `.env.local`; não há valores secretos a preencher.
-
-## Acesso de demonstração
-
-- **E-mail:** `demo@kurio.art`
-- **Senha:** `KurioPass123`
-- **Cupom válido:** `KURIO10` — aplica 10% de desconto no subtotal.
-
-Pagamentos, carteiras e login social são simulações; não conectam extensões, blockchain ou provedores externos.
 
 ## Comandos
 
